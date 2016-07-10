@@ -1,4 +1,4 @@
-package nbclassifier
+package classifier
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.mllib.classification.{NaiveBayes, NaiveBayesModel}
@@ -11,7 +11,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 /**
   * Created by chanjinpark on 2016. 6. 21..
   */
-object CRBClassifier extends basic.PreProcessing with basic.Evaluation {
+object ICTNaiveBayes extends basic.PreProcessing with basic.Evaluation {
 
   def main(args: Array[String]): Unit = {
 
@@ -31,11 +31,14 @@ object CRBClassifier extends basic.PreProcessing with basic.Evaluation {
     val (data, eval) = (split0(0), split0(1))
 
     val parsedData = data.map(d => LabeledPoint(isICTConv(d._1._2._2(0)), d._2.toDense))
-    val split = parsedData.randomSplit(Array(0.7, 0.3))
+    val split = parsedData.randomSplit(Array(0.8, 0.2))
     val (training, test) = (split(0), split(1))
 
     val model = NaiveBayes.train(training, lambda = 1.0, modelType = "multinomial")
     val valuesAndPreds = test.map(p => (p.label, model.predict(p.features)))
+
+    //TODO: Bernoulli naive bayse. modelType = "bernoulli".
+    //For this, data should be binary, or 0 or 1, rather than frequency of words
 
     // Save and load model
     //model.save(sc, "target/tmp/myNaiveBayesModel")
@@ -59,7 +62,7 @@ object CRBClassifier extends basic.PreProcessing with basic.Evaluation {
     println(s"$cntIctconv = $tp + $fn")
 
     println(f"전체 ${count} 개, 융합과제수는 ${cntIctconv} 개")
-    println(f"융합과제 예측한 것은 ${tp}개, 비융합과제를 융합과제로 예측한 것은 ${fp} 개")
+    println(f"융합과제 맞춘 것은 ${tp}개, 비융합과제를 융합과제로 예측한 것은 ${fp} 개")
     println(f"Precision = ${tp.toDouble/(tp + fp)}%1.2f, Recall = ${tp.toDouble/(tp + fn)}%1.2f")
 
     println(f"Accuracy = ${(tp + tn).toDouble/(tp + tn + fp + fn)}")
