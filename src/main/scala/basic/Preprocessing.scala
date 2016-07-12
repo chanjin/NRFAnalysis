@@ -2,7 +2,7 @@ package basic
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.mllib.linalg.{SparseVector, Vector}
+import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SQLContext
 
@@ -195,6 +195,17 @@ object MatrixExport extends PreProcessing {
 
 object MatrixLoader {
   def main(args: Array[String]): Unit = {
+    val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
+    val sc = new SparkContext(conf)
+    Logger.getLogger("org").setLevel(Level.ERROR)
 
+    def parse(rdd: RDD[String]): RDD[(Long, Vector)] = {
+      val pattern: scala.util.matching.Regex = "\\(([0-9]+),(.*)\\)".r
+      rdd .map{
+        case pattern(k, v) => (k.toLong, Vectors.parse(v))
+      }
+    }
+
+    val tfidf = parse(sc.textFile("data/corpus/part-*"))
   }
 }
