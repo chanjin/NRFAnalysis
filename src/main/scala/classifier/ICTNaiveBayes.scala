@@ -7,11 +7,12 @@ import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
 
 /**
   * Created by chanjinpark on 2016. 6. 21..
   */
-object ICTNaiveBayes extends basic.PreProcessing with basic.Evaluation {
+object ICTNaiveBayes extends basic.PreProcessing with basic.Evaluation with basic.TFIDF {
 
   def main(args: Array[String]): Unit = {
 
@@ -19,16 +20,17 @@ object ICTNaiveBayes extends basic.PreProcessing with basic.Evaluation {
     val sc = new SparkContext(conf)
     Logger.getLogger("org").setLevel(Level.ERROR)
 
-    val (docs, vocab, matrix) = getInputData(sc)
+    val corpus = getCorpus(sc)
+    val (tfidf, hashtf) = getMatrix(corpus)
+
 
     def isICTConv(s: String) = if (s.equals("ICT·융합연구")) 1.0 else 0.0
 
     val metadata:  RDD[(String, (String, Array[String], Array[String], Array[String]))] = getMetaData(sc)
-    val docids = docs.zipWithIndex()
 
-    val dataJoined = metadata.zipWithIndex().map(_.swap).join(matrix).values
-    val split0 = dataJoined.randomSplit(Array(0.99, 0.1))
-    val (data, eval) = (split0(0), split0(1))
+    val data = metadata.zip(tfidf)
+    //val split0 = dataJoined.randomSplit(Array(0.99, 0.1))
+    //val (data, eval) = (split0(0), split0(1))
 
     val parsedData = data.map(d => LabeledPoint(isICTConv(d._1._2._2(0)), d._2.toDense))
     val split = parsedData.randomSplit(Array(0.8, 0.2))
@@ -67,7 +69,7 @@ object ICTNaiveBayes extends basic.PreProcessing with basic.Evaluation {
 
     println(f"Accuracy = ${(tp + tn).toDouble/(tp + tn + fp + fn)}")
 
-
+/*
     val evalresult = eval.map {
       case (metadata, vec) => {
         val point = LabeledPoint(isICTConv(metadata._2._2(0)), vec.toDense)
@@ -87,6 +89,7 @@ object ICTNaiveBayes extends basic.PreProcessing with basic.Evaluation {
     println("False Negatives")
     val falsenegatives = evalresult.filter(_._2 == 1).map(_._3)
     falsepositives.take(5).map(md => Array(md._1, md._2._1, md._2._2.mkString(":")).mkString(", ")).foreach(println)
+    */
   }
 
 

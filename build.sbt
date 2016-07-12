@@ -16,6 +16,7 @@ libraryDependencies ++= Seq(
 )
 
 
+
 libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0"
 libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0" classifier "models"
 
@@ -27,8 +28,9 @@ libraryDependencies += "org.apache.poi" % "poi-ooxml" % "3.14"
 libraryDependencies += "org.apache.lucene" % "lucene-analyzers" % "3.6.2"
 
 
-//libraryDependencies += "org.apache.tika" % "tika-app" % "1.13"
+libraryDependencies += "arirang.lucene-analyzer-5.0" % "arirang.lucene-analyzer-5.0" % "1.0.0" from "file:///Users/chanjinpark/GitHub/NRFAnalysis/jars/arirang.lucene-analyzer-5.0-1.0.0.jar"
+libraryDependencies += "com.argo" % "arirang-morph" % "1.0.0" from "file:///Users/chanjinpark/GitHub/NRFAnalysis/jars/arirang-morph-1.0.0.jar"
 
-//libraryDependencies += "org.apache.tika" % "tika-core" % "1.13"
+
 
 //libraryDependencies += "org.apache.tika" % "tika-parsers" % "1.13"

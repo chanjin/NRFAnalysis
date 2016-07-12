@@ -105,6 +105,36 @@ trait PreProcessing extends Serializable {
   }
 
 
+  def getCorpus(sc: SparkContext) = {
+    val inputdata = sc.wholeTextFiles(contdir + "*.txt").
+      map(x => {
+        val name = x._1.substring(contdir.length + 5)
+        val lines = x._2.split("\n")
+        var words = Array[String]()
+        try {
+          words = lines.flatMap(l => vocabWords(preprocess(l)))
+        } catch {
+          case e: Exception => { println(e); println(name); println(lines)}
+        }
+        (name, words)
+      })
+
+    val stopWordsSet = Set("of", "and", "in", "the", "Mixed", "근간한", "대한", "활용", "관련", "가능", "연구", "개발", "통한",
+      "제시", "제공", "이용", "적용", "다양")
+    stopWords = sc.broadcast(stopWordsSet).value
+
+    val docs = inputdata.keys.map(s => s.substring(0, s.lastIndexOf(".txt")))
+    val metadata = getMetaData(sc).collect.toMap
+
+    val corpus = inputdata.map{
+      case (id, strs) => {
+        val meta = metadata(id.substring(0, id.lastIndexOf(".")))
+        strs.filter(s => !stopWords.contains(s)) ++ Array(meta._1) ++ meta._2 ++ meta._3 ++ meta._4
+      }
+    }
+    corpus
+  }
+
   //TODO: TFIDF
   def tfidf(m: RDD[(Long, Vector)]) = {
 
@@ -145,7 +175,6 @@ trait PreProcessing extends Serializable {
 }
 
 object MatrixExport extends PreProcessing {
-
   def main(args: Array[String]) : Unit = {
     import java.io._
 
@@ -154,12 +183,18 @@ object MatrixExport extends PreProcessing {
     Logger.getLogger("org").setLevel(Level.ERROR)
 
     val (docs, vocab, matrix) = getInputData(sc)
-    val contfile = workspace + "contents.csv"
-    val f = new File(contfile)
-    if (f.exists()) f.delete()
 
-    matrix.map(x => x._1 + ", " + x._2.toDense.toArray.mkString(",")).saveAsTextFile(contfile)
-    val vocabfile = new File(workspace + "vocab.csv")
+    println(docs.count)
+    println(vocab.size)
+
+    matrix.saveAsTextFile("data/matrix")
+    docs.saveAsTextFile("data/docs")
+    sc.parallelize(vocab.map(kv=> kv._1 + ":" + kv._2).toSeq).saveAsTextFile("data/vocab")
+  }
+}
+
+object MatrixLoader {
+  def main(args: Array[String]): Unit = {
 
   }
 }
