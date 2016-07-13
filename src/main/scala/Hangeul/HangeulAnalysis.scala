@@ -6,8 +6,8 @@ package Hangeul
 
 
 import org.apache.lucene.analysis._
-import org.apache.lucene.analysis.kr._
-import org.apache.lucene.analysis.kr.morph._
+import org.apache.lucene.analysis.ko._
+import org.apache.lucene.analysis.ko.morph._
 
 import scala.collection.JavaConversions._
 
@@ -35,8 +35,8 @@ object HangeulAnalysis {
     println
 
     val in3 = "올 해크리스마스 에는 눈이내리지않고 비교적포근할전 망이다."
-    println(wordSpaceAnalyze(in3))
-    println
+    //println(wordSpaceAnalyze(in3))
+    //println
 
     val in4 = "올해 크리스마스에는 눈이 내리지 않고 비교적 포근할 전망이다"
     println(guideWords(in4))
@@ -74,11 +74,11 @@ object HangeulAnalysis {
     source.split(" ").map(x => ma.analyze(x)).mkString(" ")
   }
 
-  def wordSpaceAnalyze(source: String, force: Boolean = false) = {
+  /*def wordSpaceAnalyze(source: String, force: Boolean = false) = {
     val wa = new WordSpaceAnalyzer
     val s = if (force) source.replace(" ", "") else source
     wa.analyze(s).toArray().map(_.toString).mkString(" ")
-  }
+  }*/
 
   def compoundNounAnalyze(source: String) = {
     val ca = new CompoundNounAnalyzer

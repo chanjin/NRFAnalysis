@@ -1,7 +1,8 @@
 *.class
-jar/
 project/
 target/
 ldaviz/
 .idea/
 data/
+metastore_db/
+*.log
