@@ -7,7 +7,7 @@ package basic
 import java.io._
 
 import org.apache.poi.ss.usermodel.Cell
-import org.apache.poi.xssf.usermodel.{XSSFRow, XSSFWorkbook}
+import org.apache.poi.xssf.usermodel.{XSSFCell, XSSFRow, XSSFWorkbook}
 
 object ExcelFile {
   val workspace ="/Users/chanjinpark/data/NRF2015/"
@@ -21,51 +21,33 @@ object ExcelFile {
   val metadata = workspace + "NRF2015Meta.csv"
   val contdir = workspace + "content/"
 
+  def removeCommas(s: String) =
+    s.replaceAll(",", " ").replaceAll("[\n”\"]", "")
+
+
+  private def matchCell(cell: XSSFCell) = {
+    cell.getCellType match {
+      case Cell.CELL_TYPE_STRING => cell.getStringCellValue
+      case Cell.CELL_TYPE_NUMERIC => cell.getRawValue
+      case Cell.CELL_TYPE_BLANK => ""
+      case _ => "*******"
+    }
+  }
+
   def writeRow(row: XSSFRow, ncols: Int) : String = {
     val name = row.getCell(21).getStringCellValue
-    val content = (colContStart until colContEnd + 1).map(j => {
-      val cell = row.getCell(j)
-      cell.getCellType match {
-        case Cell.CELL_TYPE_STRING => cell.getStringCellValue
-        case Cell.CELL_TYPE_NUMERIC => cell.getRawValue
-        case Cell.CELL_TYPE_BLANK => ""
-        case _ => "*******"
-      }
-    }).mkString("\n\n")
-
+    val content = (colContStart until colContEnd + 1).map(j => matchCell(row.getCell(j))).mkString("\n\n")
 
     val writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(contdir + name + ".txt"), "UTF-8"));
-    //new PrintWriter(new File(contdir + name + ".txt"))
-
     writer.write(content)
     writer.close()
 
-    (0 until colContStart).map(j => {
-      val cell = row.getCell(j)
-      cell.getCellType match {
-        case Cell.CELL_TYPE_STRING => cell.getStringCellValue
-        case Cell.CELL_TYPE_NUMERIC => cell.getRawValue
-        case Cell.CELL_TYPE_BLANK => ""
-        case _ => "*******"
-      }
-    }).mkString(sep)
+    (0 until colContStart).map(j => matchCell(row.getCell(j))).mkString(sep)
   }
 
-
-  def removeCommas(s: String) = {
-    s.replaceAll(",", " ").replaceAll("[\n”\"]", "")
-  }
   def writeRowOnlyMeta(row: XSSFRow, ncols: Int) : String = {
     val name = row.getCell(21).getStringCellValue
-    (0 until colContStart).map(j => {
-      val cell = row.getCell(j)
-      cell.getCellType match {
-        case Cell.CELL_TYPE_STRING => removeCommas(cell.getStringCellValue)
-        case Cell.CELL_TYPE_NUMERIC => removeCommas(cell.getRawValue)
-        case Cell.CELL_TYPE_BLANK => ""
-        case _ => "*******"
-      }
-    }).mkString(sep)
+    (0 until colContStart).map(j => matchCell(row.getCell(j))).mkString(sep)
   }
 
   def main(args: Array[String]) = {
