@@ -1,3 +1,9 @@
+### NSFAwards 분석 - SVD 코드
+NSF Awards 데이터에 대해서 SVD 분석을 하고, IDF 기반 Term Document Matrix 구축 및 활용 
+
+Lemmaize
+
+```scala
 package LDA
 
 import java.io.{FileOutputStream, PrintStream}
@@ -37,39 +43,39 @@ object NSFAwards {
     val numTerms = 5000
     val sampleSize = 1.0
 
-    val inputdata = sc.wholeTextFiles("/Users/chanjinpark/DevProj/NSFAwards/data/awards_2003/*/*.txt").
+    val inputdata = sc.wholeTextFiles(path + "*.txt").
       map(x => {
         val kv = parseProject(x._2.split("\n").toList)
         (kv("File"), kv("Title"),  kv("Abstract"), kv("fields"))
       })
 
     val plainText = inputdata.map(d => (d._1 + ":" + d._4, d._2 + " " + d._3))
-
-    def loadStopWords(path: String) = scala.io.Source.fromFile(path).getLines().toSet
-    val stopWords = sc.broadcast(loadStopWords("./stopwords.txt")).value
+    
+    val stopWords = {
+      def loadStopWords(path: String) = scala.io.Source.fromFile(path).getLines().toSet
+      sc.broadcast(loadStopWords("./stopwords.txt")).value
+    }
 
     val lemmatized = plainText.mapPartitions(iter => {
       // createNLPPipeline
       val props = new Properties()
       props.put("annotators",  "tokenize, ssplit, pos, lemma") //"tokenize, ssplit, pos, lemma, ner, parse, dcoref"
       val pipeline = new StanfordCoreNLP(props)
-
       // lemmatize
-      iter.map { case(title, contents) =>
-        (title, lemmatize(contents, stopWords, pipeline))
-      }
-    })
-
-    println("------ lemmatized " + lemmatized.count())
-
-    val filtered = lemmatized.filter(_._2.size > 1)
-    println("------ filtered " + filtered.count())
-
-    val (termDocMatrix, termIds, docIds, idfs) = termDocumentMatrix(filtered, stopWords, numTerms, sc)
+      iter.map { case(title, contents) => (title, lemmatize(contents, stopWords, pipeline)) }
+    }).filter(_._2.size > 1)
+    
+    // 추가 필터 사용
+    /*filter(s => !("research,researcher,participant,community,university,provide,use,student,problem,new,workshop,develop,hold,international," +
+                  "science,engineering,conference,area,engineering,group,study,analysis,program,project,work,system,undergraduate,technology,education," +
+                  "support,propose,design,result,effect,year,proposal,include,development,understand,understanding,important").
+                  split(",").map(_.trim).contains(s))
+    */
+    
+    val (termDocMatrix, termIds, docIds, idfs) = termDocumentMatrix(lemmatized, stopWords, numTerms, sc)
+    
     termDocMatrix.cache()
-
-    println("--- termDocMatric " + termDocMatrix.count())
-
+    
     val mat = new RowMatrix(termDocMatrix)
     val svd = mat.computeSVD(k, computeU=true)
 
@@ -91,39 +97,31 @@ object NSFAwards {
     content.foreach(l=> {
       if (l.contains(":")) {
         val pair = l.split(":").map(_.trim).toList
-        if ( key.length > 0 ) {
+        if ( key.length > 0 ) 
           kvlist = kvlist + (key -> value.reverse.mkString(" "))
-        }
+        
         key = pair.head
         value = pair.tail
       }
-      else {
-        value = l.trim :: value
-      }
+      else value = l.trim :: value
     })
-    if (content.nonEmpty) {
+    if (content.nonEmpty) 
       kvlist = kvlist + (key -> value.reverse.mkString(" "))
-    }
 
     var fields_ = List[String]()
     fields_ = fields_ ::: (if (kvlist.contains("NSF Program")) kvlist("NSF Program").split(",").toList else List[String]())
     fields_ = fields_ ::: (if (kvlist.contains("Fld Applictn")) kvlist("Fld Applictn").split(",").toList else List[String]())
 
     val fields = fields_.map(f => {
-      if (f.length > 0 && Character.isDigit(f.charAt(0))) {
+      if (f.length > 0 && Character.isDigit(f.charAt(0))) 
         f.substring(f.indexOf(" "), f.length).trim
-      }
       else f.trim
-    }).filter(_.length > 0).toList
-
+    }).filter(_.length > 0)
     kvlist + ("fields" -> fields.mkString(","))
   }
-
-
+  
   import scala.collection.JavaConversions._
-
-  def lemmatize(text: String, stopWords: Set[String], pipeline: StanfordCoreNLP)
-  : Seq[String] = {
+  def lemmatize(text: String, stopWords: Set[String], pipeline: StanfordCoreNLP): Seq[String] = {
     val doc = new Annotation(text)
     pipeline.annotate(doc)
     val lemmas = new ArrayBuffer[String]()
@@ -144,29 +142,22 @@ object NSFAwards {
     : (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
 
     val docTermFreqs = docs.mapValues(terms => {
-      val termFreqsInDoc = terms.foldLeft(new scala.collection.mutable.HashMap[String, Int]()) {
-        (map, term) => map += term -> (map.getOrElse(term, 0) + 1)
-      }
-      termFreqsInDoc
+      // term frequency in docs
+      terms.foldLeft(new scala.collection.mutable.HashMap[String, Int]()) {
+        (map, term) => map += term -> (map.getOrElse(term, 0) + 1) }
     })
-
     docTermFreqs.cache()
+    
     val docIds = docTermFreqs.map(_._1).zipWithUniqueId().map(_.swap).collectAsMap()
-
     val docFreqs = documentFrequenciesDistributed(docTermFreqs.map(_._2), numTerms)
-    println("Number of terms: " + docFreqs.size)
     saveDocFreqs("docfreqs.tsv", docFreqs)
 
     val numDocs = docIds.size
-
     val idfs = inverseDocumentFrequencies(docFreqs, numDocs)
-
-    // Maps terms to their indices in the vector
-    val termToId = idfs.keys.zipWithIndex.toMap
+    val termToId = idfs.keys.zipWithIndex.toMap // Maps terms to their indices in the vector
 
     val bIdfs = sc.broadcast(idfs).value
     val bTermToId = sc.broadcast(termToId).value
-
     val vecs = docTermFreqs.map(_._2).map(termFreqs => {
       val docTotalTerms = termFreqs.values.sum
       val termScores = termFreqs.filter {
@@ -196,9 +187,7 @@ object NSFAwards {
   : Map[String, Double] = {
     docFreqs.map{ case (term, count) => (term, math.log(numDocs.toDouble / count))}.toMap
   }
-
-
-
+  
   def topTermsInTopConcepts(svd: SingularValueDecomposition[RowMatrix, Matrix], numConcepts: Int,
                             numTerms: Int, termIds: Map[Int, String]): Seq[Seq[(String, Double)]] = {
     val v = svd.V
@@ -223,40 +212,30 @@ object NSFAwards {
     }
     topDocs
   }
-
-
-  def row(mat: BDenseMatrix[Double], index: Int): Seq[Double] = {
+  
+  def row(mat: BDenseMatrix[Double], index: Int): Seq[Double] = 
     (0 until mat.cols).map(c => mat(index, c))
-  }
 
-  /**
-    * Selects a row from a matrix.
-    */
+  /* Selects a row from a matrix.*/
   def row(mat: Matrix, index: Int): Seq[Double] = {
     val arr = mat.toArray
     (0 until mat.numCols).map(i => arr(index + i * mat.numRows))
   }
 
-  /**
-    * Selects a row from a distributed matrix.
-    */
+  /* Selects a row from a distributed matrix. */
   def row(mat: RowMatrix, id: Long): Array[Double] = {
     mat.rows.zipWithUniqueId.map(_.swap).lookup(id).head.toArray
   }
 
-  /**
-    * Finds the product of a dense matrix and a diagonal matrix represented by a vector.
-    * Breeze doesn't support efficient diagonal representations, so multiply manually.
-    */
+  /* Finds the product of a dense matrix and a diagonal matrix represented by a vector.
+     Breeze doesn't support efficient diagonal representations, so multiply manually. */
   def multiplyByDiagonalMatrix(mat: Matrix, diag: Vector): BDenseMatrix[Double] = {
     val sArr = diag.toArray
     new BDenseMatrix[Double](mat.numRows, mat.numCols, mat.toArray)
       .mapPairs{case ((r, c), v) => v * sArr(c)}
   }
 
-  /**
-    * Finds the product of a distributed matrix and a diagonal matrix represented by a vector.
-    */
+  /* Finds the product of a distributed matrix and a diagonal matrix represented by a vector.*/
   def multiplyByDiagonalMatrix(mat: RowMatrix, diag: Vector): RowMatrix = {
     val sArr = diag.toArray
     new RowMatrix(mat.rows.map(vec => {
@@ -266,9 +245,7 @@ object NSFAwards {
     }))
   }
 
-  /**
-    * Returns a matrix where each row is divided by its length.
-    */
+  /* Returns a matrix where each row is divided by its length. */
   def rowsNormalized(mat: BDenseMatrix[Double]): BDenseMatrix[Double] = {
     val newMat = new BDenseMatrix[Double](mat.rows, mat.cols)
     for (r <- 0 until mat.rows) {
@@ -278,9 +255,7 @@ object NSFAwards {
     newMat
   }
 
-  /**
-    * Returns a distributed matrix where each row is divided by its length.
-    */
+  /* Returns a distributed matrix where each row is divided by its length. */
   def rowsNormalized(mat: RowMatrix): RowMatrix = {
     new RowMatrix(mat.rows.map(vec => {
       val length = math.sqrt(vec.toArray.map(x => x * x).sum)
@@ -288,10 +263,8 @@ object NSFAwards {
     }))
   }
 
-  /**
-    * Finds terms relevant to a term. Returns the term IDs and scores for the terms with the highest
-    * relevance scores to the given term.
-    */
+  /* Finds terms relevant to a term. Returns the term IDs and scores for the terms with the highest
+     relevance scores to the given term.*/
   def topTermsForTerm(normalizedVS: BDenseMatrix[Double], termId: Int): Seq[(Double, Int)] = {
     // Look up the row in VS corresponding to the given term ID.
     val termRowVec = new BDenseVector[Double](row(normalizedVS, termId).toArray)
@@ -303,10 +276,8 @@ object NSFAwards {
     termScores.sortBy(-_._1).take(10)
   }
 
-  /**
-    * Finds docs relevant to a doc. Returns the doc IDs and scores for the docs with the highest
-    * relevance scores to the given doc.
-    */
+  /* Finds docs relevant to a doc. Returns the doc IDs and scores for the docs with the highest
+     relevance scores to the given doc.*/
   def topDocsForDoc(normalizedUS: RowMatrix, docId: Long): Seq[(Double, Long)] = {
     // Look up the row in US corresponding to the given doc ID.
     val docRowArr = row(normalizedUS, docId)
@@ -322,10 +293,8 @@ object NSFAwards {
     allDocWeights.filter(!_._1.isNaN).top(10)
   }
 
-  /**
-    * Finds docs relevant to a term. Returns the doc IDs and scores for the docs with the highest
-    * relevance scores to the given term.
-    */
+  /* Finds docs relevant to a term. Returns the doc IDs and scores for the docs with the highest
+     relevance scores to the given term. */
   def topDocsForTerm(US: RowMatrix, V: Matrix, termId: Int): Seq[(Double, Long)] = {
     val termRowArr = row(V, termId).toArray
     val termRowVec = Matrices.dense(termRowArr.length, 1, termRowArr)
@@ -379,3 +348,5 @@ object NSFAwards {
     println(idWeights.map{case (score, id) => (entityIds(id), score)}.mkString(", "))
   }
 }
+
+```

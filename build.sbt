@@ -15,12 +15,6 @@ libraryDependencies ++= Seq(
   "org.scalanlp" %% "breeze-viz" % "0.11.2"
 )
 
-
-
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0"
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.6.0" classifier "models"
-
-
 libraryDependencies += "org.apache.poi" % "poi" % "3.14"
 libraryDependencies += "org.apache.poi" % "poi-ooxml" % "3.14"
 

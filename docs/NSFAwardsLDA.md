@@ -1,12 +1,23 @@
+### NSFAwards에 LDA 적용
+
+```scala
 package LDA
 
+import java.util.Properties
+
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
+import edu.stanford.nlp.ling.CoreAnnotations.{LemmaAnnotation, SentencesAnnotation, TokensAnnotation}
+import edu.stanford.nlp.ling.CoreLabel
+import edu.stanford.nlp.pipeline.{Annotation, StanfordCoreNLP}
+import edu.stanford.nlp.util.CoreMap
+
 /**
-  * Created by chanjinpark on 2016. 4. 7..
+  * Created by chanjinpark on 2016. 4. 11..
   */
-object LDA {
+object LDALemmatized {
 
   def main(args: Array[String]) : Unit = {
     val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
@@ -43,11 +54,10 @@ object LDA {
           f.substring(f.indexOf(" "), f.length).trim
         }
         else f.trim
-      }).filter(_.length > 0).toList
+      }).filter(_.length > 0)
 
       kvlist + ("fields" -> fields.mkString(","))
     }
-
 
     val inputdata = sc.wholeTextFiles("/Users/chanjinpark/DevProj/NSFAwards/data/*/*/*.txt").
       map(x => {
@@ -56,30 +66,36 @@ object LDA {
       })
 
 
-    import org.apache.spark.rdd.RDD
+    def loadStopWords(path: String) = scala.io.Source.fromFile(path).getLines().toSet
+
+    val stopWords = sc.broadcast(loadStopWords("./stopwords.txt")).value
+
     val docs = inputdata.map(x => x._1 + ": " + x._4 + ", " + x._5.substring(5).trim).collect()
     val corpus: RDD[String] = inputdata.map(x => x._2 + x._3)
 
-    val tokenized = corpus.map(_.toLowerCase.split("\\s")).
-        map(_.filter(_.length > 3).
-          filter(_.forall(java.lang.Character.isLetter)))
+    val lemmatized : RDD[Seq[String]] = corpus.mapPartitions(iter => {
+      // createNLPPipeline
+      val props = new Properties()
+      props.put("annotators",  "tokenize, ssplit, pos, lemma") //"tokenize, ssplit, pos, lemma, ner, parse, dcoref"
+      val pipeline = new StanfordCoreNLP(props)
 
-    val termCounts: Array[(String, Long)] =
-      tokenized.flatMap(_.map(_ -> 1L)).reduceByKey(_ + _).collect().sortBy(-_._2)
+      // lemmatize
+      iter.map { case contents =>
+        NSFAwards.lemmatize(contents, stopWords, pipeline).
+          filter(s => !("research,researcher,participant,community,university,provide,use,student,problem,new,workshop,develop,hold,international," +
+            "science,engineering,conference,area,engineering,group,study,analysis,program,project,work,system,undergraduate,technology,education," +
+            "support,propose,design,result,effect,year,proposal,include,development,understand,understanding,important").
+            split(",").map(_.trim).contains(s))
+      }
+    })
 
-    val numStopwords = 20
-    val vocabArray: Array[String] = termCounts.takeRight(termCounts.size - numStopwords).map(_._1).
-      filter(s => !("where,only,there,then,into,have,should,will,following,same,must,other,than,over,some,they,like,such,since,takes," +
-        "while,does,many,either,within,before,after,want,provide,about,simple,between,used,well,support,through," +
-        "both,important,more,during,using,including,understand,proposed,understanding,conference,results,university,graduate,program,development," +
-        "international,program,design,been,most").split(",").map(_.trim).contains(s))
-
+    val vocabArray = lemmatized.flatMap(x => x).distinct().collect()
     val vocab: Map[String, Int] = vocabArray.zipWithIndex.toMap
 
     import org.apache.spark.mllib.linalg.{Vector, Vectors}
     // Convert documents into term count vectors
     val documents: RDD[(Long, Vector)] =
-      tokenized.zipWithIndex.map { case (tokens, id) =>
+      lemmatized.zipWithIndex.map { case (tokens, id) =>
         val counts = new scala.collection.mutable.HashMap[Int, Double]()
         tokens.foreach { term =>
           if (vocab.contains(term)) {
@@ -90,22 +106,17 @@ object LDA {
         (id, Vectors.sparse(vocab.size, counts.toSeq))
       }
 
-    //val docs2paths =
-    // documents.first 문서 별로 각 term의 사용 횟수를 기록 (문서번호, (단어 벡터))로 구성됨
-    // 단어 벡터는 sparse 벡터로서
-    // (1.0, 0.0, 3.0)를 덴스벡터로는 [1.0, 0.0, 3.0], 스파스벡터로는 (3, [0, 2], [1.0, 3.0])로 표시됨. 크기, 인덱스, 값
-    // res13: (Long, org.apache.spark.mllib.linalg.Vector) =
-    // (0,(4167,[0,1,4,7,8,10,11,12,21,25,53,55,57,61,63,64,65,78,83,94,98,105,107,110,114,1
 
     import org.apache.spark.mllib.clustering.LDA
 
     // Set LDA parameters
-    val numTopics = 10
-    val lda = new LDA().setK(numTopics).setMaxIterations(20)
-
+    val numTopics = 20
+    val lda = new LDA().setK(numTopics).setMaxIterations(25)
     val ldaModel = lda.run(documents)
 
-    val topicIndices = ldaModel.describeTopics(maxTermsPerTopic = 20)
+    //LDAVizHTML.generatePages(ldaModel,vocabArray,docs)
+
+    val topicIndices = ldaModel.describeTopics(maxTermsPerTopic = 10)
     topicIndices.take(3).foreach { case (terms, termWeights) =>
       println("TOPIC:")
       terms.zip(termWeights).foreach {
@@ -115,35 +126,10 @@ object LDA {
       println()
     }
 
-
     println("Learned topics (as distributions over vocab of " + ldaModel.vocabSize + " words):")
 
-    import org.apache.spark.mllib.clustering.DistributedLDAModel
-    val distmodel = ldaModel.asInstanceOf[DistributedLDAModel]
-    val docspertopic = distmodel.topDocumentsPerTopic(10)
-
-
-    //LDAVizHTML.generatePages(ldaModel,vocabArray,docs)
-
-    docspertopic.take(3).foreach {
-      case (docids, docweights) =>
-        println("TOPIC:")
-        docids.zip(docweights).foreach {
-          case (d, w) =>
-            println(s"${w}:\t${docs(d.toInt)}")
-        }
-    }
-
-
-    val topicsperdocument = distmodel.topTopicsPerDocument(3)
-    topicsperdocument.take(3).foreach {
-      case (doc, topics, w) => {
-        println("DOC:" + s"${docs(doc.toInt)}")
-        topics.zip(w).foreach {
-          case (t, w) =>
-            println(s"TOPIC ${t}\t${w}")
-        }
-      }
-    }
   }
+
 }
+```
+

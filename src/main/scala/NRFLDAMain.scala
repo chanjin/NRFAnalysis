@@ -14,14 +14,28 @@ import scala.collection.JavaConversions._
 
 
 
-object LDANRFProjects extends PreProcessing {
+object NRFLDAMain extends PreProcessing {
+
+  val workspace ="/Users/chanjinpark/data/NRFdata/"
+  //val metafile = Array("NRF2015Meta.csv").map(workspace + _)
+  //val contdir = Array("content2015-sample/").map(workspace+ _)
+  val metafile = Array("NRF2013Meta.csv", "NRF2014Meta.csv", "NRF2015Meta.csv").map(x => workspace + x)
+  val contdir = Array("content2013/", "content2014/", "content2015/").map(workspace + _)
+
+  def docpath(id: String): String = {
+    val idx = id.substring(0, 4).toInt - 2013
+    if ( idx >= 0 && idx < contdir.size) contdir(idx) + id + ".txt"
+    else contdir(0) + id + ".txt"
+  }
+
+
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
     val sc = new SparkContext(conf)
     Logger.getLogger("org").setLevel(Level.ERROR)
 
-    val (docs, vocab, matrix) = getInputData(sc)
-    val meta = getMetaData(sc).collect().toMap
+    val meta = getMetaData(sc, metafile).collect().toMap
+    val (docs, vocab, matrix) = getVocabMatrix(sc, contdir, meta)
 
     import org.apache.spark.mllib.clustering.LDA
     // Set LDA parameters
@@ -35,7 +49,9 @@ object LDANRFProjects extends PreProcessing {
 
     val id2vocab = vocab.map(_.swap)
 
-    val ldahtml = new LDAVizHTML(ldaModel, id2vocab, docs.collect(), meta, numTerms)
+
+    val ldahtml = new LDAVizHTML(ldaModel, id2vocab, docs.collect(), meta, numTerms, docpath)
+
     ldahtml.generatePages()
 
     val topicIndices = ldaModel.describeTopics(maxTermsPerTopic = numTerms)

@@ -1,5 +1,6 @@
-package classifier
+package classification
 
+import basic.MetaData
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.tree.{DecisionTree, GradientBoostedTrees}
@@ -10,31 +11,17 @@ import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
 /**
   * Created by chanjinpark on 2016. 7. 9..
   */
-object ICTDecisionTree extends basic.PreProcessing with basic.Evaluation with basic.TFIDF {
+class ICTDecisionTree(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[String, MetaData])
+  extends basic.TFIDF with basic.Evaluation {
 
-  def main(args: Array[String]): Unit = {
+  def run() = {
 
-    val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
-    val sc = new SparkContext(conf)
-    Logger.getLogger("org").setLevel(Level.ERROR)
-
-    //val (docs, vocab, matrix) = getInputData(sc)
-
-    val corpus = getCorpus(sc)
     val (tfidf, hashtf) = getMatrix(corpus)
 
-
     def isICTConv(s: String) = if (s.equals("ICT·융합연구")) 1.0 else 0.0
-
-    val metadata:  RDD[(String, (String, Array[String], Array[String], Array[String]))] = getMetaData(sc)
-    //val docids = docs.zipWithIndex()
-
-
-    val data = metadata.zip(tfidf) //metadata.zipWithIndex().map(_.swap).join(matrix).values
-    //val split0 = dataJoined.randomSplit(Array(0.9, 0.1))
-    //val (data, eval) = (split0(0), split0(1))
-
-    val parsedData = data.map(d => LabeledPoint(isICTConv(d._1._2._2(0)), d._2.toDense))
+    val parsedData = docs.zip(tfidf).map(d => {
+      LabeledPoint(isICTConv(metadata(d._1).mainArea(0)), d._2.toDense)
+    })
     val split = parsedData.randomSplit(Array(0.8, 0.2))
     val (training, test) = (split(0), split(1))
 
@@ -79,7 +66,22 @@ object ICTDecisionTree extends basic.PreProcessing with basic.Evaluation with ba
     println(f"비융합과제 맞춘 것은 ${tn}개, 융합과제를 비융합과제로 예측한 것은 ${fn}개")
     println(f"Precision = ${tp.toDouble/(tp + fp)}%1.2f, Recall = ${tp.toDouble/(tp + fn)}%1.2f")
     println(f"Accuracy = ${(tp + tn).toDouble/(tp + tn + fp + fn)}")
+  }
+}
 
+
+object ICTDecisionTree extends basic.PreProcessing {
+
+  def apply(docs: RDD[String], corpus: RDD[Array[String]], meta: Map[String, MetaData]) =
+    new ICTDecisionTree(docs, corpus, meta)
+
+  def main(args: Array[String]): Unit = {
+
+    val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
+    val sc = new SparkContext(conf)
+    Logger.getLogger("org").setLevel(Level.ERROR)
+
+    //val (docs, vocab, matrix) = getInputData(sc)
 
     /*val evalresult = eval.map {
       case (metadata, vec) => {

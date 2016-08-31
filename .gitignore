@@ -6,3 +6,5 @@ ldaviz/
 data/
 metastore_db/
 *.log
+jar/
+jars/

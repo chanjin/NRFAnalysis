@@ -30,14 +30,14 @@ object LDAVizHTML {
   }
 }
 
-class LDAVizHTML(val ldaModel: LDAModel, val vocabArray: Map[Int, String], val docs: Array[String],
-                 val area: Map[String, (String, Array[String], Array[String], Array[String])], val numTerms: Int) {
+class LDAVizHTML( ldaModel: LDAModel,  vocabArray: Map[Int, String],  docs: Array[String],
+                  area: Map[String, MetaData],  numTerms: Int,
+                 docpath: String => String) {
 
   import org.apache.spark.mllib.clustering.DistributedLDAModel
   val distmodel = ldaModel.asInstanceOf[DistributedLDAModel]
   val topics = ldaModel.describeTopics(maxTermsPerTopic = numTerms)
   val numTopics = ldaModel.k
-
 
   def fileWrite(name: String, cont: String) = {
     val file = new File("ldadata/" + name);
@@ -61,12 +61,9 @@ class LDAVizHTML(val ldaModel: LDAModel, val vocabArray: Map[Int, String], val d
     writer.close()
   }
 
-  val docRootDir = "/Users/chanjinpark/data/NRF2015/content/"
-
-  def doc2pathname(s: String): String = docRootDir + s + ".txt"
   def isICT(did: Int) = {
     val a = area(docs(did))
-    a._2(0).equals("ICT·융합연구")
+    a.mainArea(0).equals("ICT·융합연구")
   }
 
 
@@ -74,7 +71,7 @@ class LDAVizHTML(val ldaModel: LDAModel, val vocabArray: Map[Int, String], val d
   def summarizeDocs(doclist: Array[Long]) = {
     val summary = doclist.map(did => {
       val a = area(docs(did.toInt))
-      (a._2(0), a._2(1), a._3(0), a._4(0))
+      (a.mainArea(0), a.mainArea(1), a.nationArea(0), a.sixTArea(0))
     }).foldLeft((Map[String, Int](), Map[String, Int](), Map[String, Int](), Map[String, Int]()))((res, as) => {
       (res._1 + (as._1 -> (res._1.getOrElse(as._1, 0) + 1)), res._2 + (as._2 -> (res._2.getOrElse(as._2, 0) + 1) ),
         res._3 + (as._3 -> (res._3.getOrElse(as._3, 0) + 1)), res._4 + (as._4 -> (res._4.getOrElse(as._4, 0) + 1)))
@@ -166,31 +163,31 @@ class LDAVizHTML(val ldaModel: LDAModel, val vocabArray: Map[Int, String], val d
     doc2topics.foreach { case (did, tids, ws) => {
 
       val s = docs(did.toInt)
-      val docname = doc2pathname(s)
+      val docname = docpath(s)
       val areas = area(s)
       val arealist = {
         <tr>
           <td>연구과제명</td>
           <td>
-            {areas._1}
+            {areas.title}
           </td>
         </tr>
           <tr>
             <td>학문분야</td>
             <td>
-              {areas._2.mkString(", ")}
+              {areas.mainArea.mkString(", ")}
             </td>
           </tr>
           <tr>
             <td>국가과학기술표준분류</td>
             <td>
-              {area(s)._3.mkString(",")}
+              {area(s).nationArea.mkString(",")}
             </td>
           </tr>
           <tr>
             <td>6T 기술분류</td>
             <td>
-              {area(s)._4.mkString(",")}
+              {area(s).sixTArea.mkString(",")}
             </td>
           </tr>
       }

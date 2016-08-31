@@ -1,6 +1,6 @@
 import java.io.{FileOutputStream, PrintStream}
 
-import basic.PreProcessing
+import basic._
 import breeze.linalg.{DenseMatrix => BDenseMatrix, DenseVector => BDenseVector, SparseVector => BSparseVector}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.mllib.linalg._
@@ -16,14 +16,19 @@ import scala.collection.mutable.ArrayBuffer
   */
 
 
-object SVDNRFProjects extends PreProcessing {
+object NRFSVDMain extends PreProcessing {
+
+  val workspace ="/Users/chanjinpark/data/NRFdata/"
+  val metafile = Array("NRF2013Meta.csv", "NRF2014Meta.csv", "NRF2015Meta.csv").map(x => workspace + x)
+  val contdir = Array("content2013/", "content2014/", "content2015/").map(workspace + _)
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
     val sc = new SparkContext(conf)
     Logger.getLogger("org").setLevel(Level.ERROR)
 
-    val (docs, vocab, matrix) = getInputData(sc)
+    val meta = getMetaData(sc, metafile).collect().toMap
+    val (docs, vocab, matrix) = getVocabMatrix(sc, contdir, meta)
 
     matrix.cache()
     // get TF-IDF. matrix: RDD[(Long, Vector)]. docid, term-frequency
@@ -48,7 +53,6 @@ object SVDNRFProjects extends PreProcessing {
 
     val numDocs = matrix.count
     val idfs = docfreq.map { case (term, cnt) => (term, math.log(numDocs.toDouble/cnt))}
-
 
   }
 
