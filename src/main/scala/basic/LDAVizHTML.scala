@@ -20,9 +20,6 @@ object LDAVizHTML {
         </body>
       </html>
 
-
-
-
     val file = new File("ldaviz/sample.html");
     val bw = new BufferedWriter(new FileWriter(file))
     bw.write(page.toString)
@@ -86,11 +83,8 @@ class LDAVizHTML( ldaModel: LDAModel,  vocabArray: Map[Int, String],  docs: Arra
 
       val terms = topics(k)._1.zip(topics(k)._2).map { case (t, w) =>
         <tr>
-          <td>
-            {s"${vocabArray(t)}"}
-          </td> <td>
-          {f"$w%1.3f"}
-        </td>
+          <td> {s"${vocabArray(t)}"} </td>
+          <td> {f"$w%1.3f"} </td>
         </tr>
       }
 
@@ -103,33 +97,17 @@ class LDAVizHTML( ldaModel: LDAModel,  vocabArray: Map[Int, String],  docs: Arra
 
       val documents = doclist.map { case (d, w) =>
         <tr>
-          <td>
-            { if (isICT(d.toInt)) "ICT융합" else "-----" }
-          </td>
-          <td>
-            <a href={"docs/" + docs(d.toInt) + ".html"}>
-              {s"${docs(d.toInt)}"}
-            </a>
-          </td>
-          <td>
-            {f"$w%1.3f"}
-          </td>
+          <td> { if (isICT(d.toInt)) "ICT융합" else "-----" } </td>
+          <td> <a href={"docs/" + docs(d.toInt) + ".html"}> {s"${docs(d.toInt)}"} </a> </td>
+          <td> {f"$w%1.3f"} </td>
         </tr>
       }
 
-
       val detailpage =
         <html>
-          <head>
-            <title>
-              {s"topic$k"}
-            </title>
-          </head>
+          <head> <title> {s"topic$k"} </title> </head>
           <body>
-            <hr color="red">Topic #
-              {s"$k"}
-            </hr>
-
+            <hr color="red">Topic # {s"$k"} </hr>
             <hr color="red">분류체계 연관성</hr>
             <table>
               <tr><td>{f"ICT 과제 수"}</td> <td> {s"$cntICT / ${doclist.length}, " + f"${cntICT.toDouble/doclist.length}%1.2f"} </td></tr>
@@ -139,29 +117,20 @@ class LDAVizHTML( ldaModel: LDAModel,  vocabArray: Map[Int, String],  docs: Arra
               <tr><td>{s"6T 기술분류"}</td><td>{s"${docsummary._4}"}</td></tr>
             </table>
             <hr color="red">Terms</hr>
-            <table>
-              {terms}
-            </table>
+            <table> {terms} </table>
             <hr color="red">Related Documents</hr>
-            <table>
-              {documents}
-            </table>
+            <table> {documents} </table>
           </body>
         </html>
       scala.xml.XML.save(s"ldaviz/$k.html", detailpage, "UTF-8")
-
-      //val filecont =
     })
   }
 
-  def getArea(did: Int) = {
-    area(docs(did))
-  }
+  def getArea(did: Int) = area(docs(did))
 
   // documentsPage(ldaModel, vocabArray, docs)
   def documentsPage(doc2topics: Array[(Long, Array[Int], Array[Double])]) = {
     doc2topics.foreach { case (did, tids, ws) => {
-
       val s = docs(did.toInt)
       val docname = docpath(s)
       val areas = area(s)
@@ -194,40 +163,21 @@ class LDAVizHTML( ldaModel: LDAModel,  vocabArray: Map[Int, String],  docs: Arra
 
       val topiclist = tids.zip(ws).map { case (t, w) =>
         <tr>
-          <td>
-            {topics(t)._1.map(term => vocabArray(term)).mkString(",")}
-          </td>
-          <td>
-            {f"$w%1.3f"}
-          </td>
-          <td>
-            <a href={s"../$t.html"}>Topic #
-              {s"$t"}
-            </a>
-          </td>
+          <td> {topics(t)._1.map(term => vocabArray(term)).mkString(",")} </td>
+          <td> {f"$w%1.3f"} </td>
+          <td> <a href={s"../$t.html"}>Topic # {s"$t"} </a> </td>
         </tr>
       }
 
       try {
         val docpage =
           <html>
-            <head>
-              <title>
-                {s}
-              </title>
-            </head>
+            <head> <title> {s} </title> </head>
             <body>
-              <hr color="red">Name:
-                {s}
-              </hr>
-              <table>
-                {arealist}
-              </table>
-              <hr color="red">Topics:
-              </hr>
-              <table>
-                {topiclist}
-              </table>
+              <hr color="red"> Name: {s} </hr>
+              <table> {arealist} </table>
+              <hr color="red">Topics: </hr>
+              <table> {topiclist} </table>
               <hr color="red">Original Text</hr>
               <pre>{scala.io.Source.fromFile(docname)("UTF-8")} </pre>
             </body>
@@ -251,29 +201,21 @@ class LDAVizHTML( ldaModel: LDAModel,  vocabArray: Map[Int, String],  docs: Arra
 
     val topicpage =
       <html>
-        <head>
-          <title>LDA</title>
+        <head> <title>LDA</title>
         </head>
         <body>
           <hr color="red">Topics</hr>
           <table>
-            {topicstr.map { case (id, str) => <tr>
-            <td>
-              <a href={id + ".html"}>
-                {str}
-              </a>
-            </td>
-          </tr>
-          }}
+            {topicstr.map { case (id, str) =>
+              <tr>
+                <td> <a href={id + ".html"}> {str} </a> </td>
+              </tr>
+            }}
           </table>
         </body>
       </html>
-
     scala.xml.XML.save("ldaviz/ldaviz.html", topicpage, "UTF-8")
-
-
   }
-
 
 
   def generatePages() = {

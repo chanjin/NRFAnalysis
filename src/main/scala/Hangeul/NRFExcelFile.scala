@@ -7,7 +7,7 @@ package Hangeul
 import java.io._
 
 import org.apache.poi.ss.usermodel.Cell
-import org.apache.poi.xssf.usermodel.{XSSFRow, XSSFWorkbook}
+import org.apache.poi.xssf.usermodel.{XSSFCell, XSSFRow, XSSFWorkbook}
 
 object NRFExcelFile {
   val workspace ="/Users/chanjinpark/data/NRFdata/"
@@ -20,6 +20,18 @@ object NRFExcelFile {
 
   val metadata = Array("NRF2013Meta.csv", "NRF2014Meta.csv", "NRF2015Meta.csv").map(x => workspace + x)
   val contdir = Array("content2013/", "content2014/", "content2015/").map(workspace + _)
+
+  private def matchCell(cell: XSSFCell) = {
+    cell.getCellType match {
+      case Cell.CELL_TYPE_STRING => cell.getStringCellValue
+      case Cell.CELL_TYPE_NUMERIC => cell.getRawValue
+      case Cell.CELL_TYPE_BLANK => ""
+      case _ => "*******"
+    }
+  }
+  def removeCommas(s: String) =
+    s.replaceAll(",", " ").replaceAll("[\n”\"]", "")
+
 
   def writeRow(row: XSSFRow, ncols: Int, dir: String) : String = {
     val name = row.getCell(21).getStringCellValue
@@ -34,36 +46,15 @@ object NRFExcelFile {
     }).mkString("\n\n")
 
     val writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(dir + name + ".txt"), "UTF-8"));
-
     writer.write(content)
     writer.close()
 
-    (0 until colContStart).map(j => {
-      val cell = row.getCell(j)
-      cell.getCellType match {
-        case Cell.CELL_TYPE_STRING => cell.getStringCellValue
-        case Cell.CELL_TYPE_NUMERIC => cell.getRawValue
-        case Cell.CELL_TYPE_BLANK => ""
-        case _ => "*******"
-      }
-    }).mkString(sep)
+    (0 until colContStart).map(j => matchCell(row.getCell(j))).mkString(sep)
   }
 
-
-  def removeCommas(s: String) = {
-    s.replaceAll(",", " ").replaceAll("[\n”\"]", "")
-  }
   def writeRowOnlyMeta(row: XSSFRow, ncols: Int) : String = {
     val name = row.getCell(21).getStringCellValue
-    (0 until colContStart).map(j => {
-      val cell = row.getCell(j)
-      cell.getCellType match {
-        case Cell.CELL_TYPE_STRING => removeCommas(cell.getStringCellValue)
-        case Cell.CELL_TYPE_NUMERIC => removeCommas(cell.getRawValue)
-        case Cell.CELL_TYPE_BLANK => ""
-        case _ => "*******"
-      }
-    }).mkString(sep)
+    (0 until colContStart).map(j => matchCell(row.getCell(j))).mkString(sep)
   }
 
   def main(args: Array[String]): Unit = {
