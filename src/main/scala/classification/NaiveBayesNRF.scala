@@ -14,8 +14,8 @@ import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
   * Created by chanjinpark on 2016. 6. 21..
   */
 
-class ICTNaiveBayes(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[String, MetaData])
-  extends basic.TFIDF with basic.Evaluation {
+class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[String, MetaData])
+  extends Serializable with  basic.TFIDF with basic.Evaluation {
   def run = {
 
     val (tfidf, hashtf) = getMatrix(corpus)
@@ -57,7 +57,10 @@ class ICTNaiveBayes(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
 
 }
 
-object ICTNaiveBayes extends basic.PreProcessing with basic.Evaluation with basic.TFIDF {
+object NaiveBayesNRF extends basic.PreProcessing with basic.Evaluation with basic.TFIDF {
+
+  def apply(docs: RDD[String], corpus: RDD[Array[String]], meta: Map[String, MetaData]) =
+    new NaiveBayesNRF(docs, corpus, meta)
 
   def main(args: Array[String]): Unit = {
 

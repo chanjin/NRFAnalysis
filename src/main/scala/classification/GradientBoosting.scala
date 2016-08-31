@@ -12,8 +12,8 @@ import org.apache.spark.{SparkConf, SparkContext}
   * Created by chanjinpark on 2016. 7. 9..
   */
 
-class ICTGradientBoosting (docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[String, MetaData])
-  extends basic.TFIDF with basic.Evaluation {
+class GradientBoosting(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[String, MetaData])
+  extends Serializable with basic.TFIDF with basic.Evaluation {
 
   def isICTConv(s: String) = if (s.equals("ICT·융합연구")) 1.0 else 0.0
 
@@ -64,12 +64,14 @@ class ICTGradientBoosting (docs: RDD[String], corpus: RDD[Array[String]], metada
 }
 
 
-object ICTGradientBoosting extends basic.PreProcessing with basic.Evaluation {
+object GradientBoosting extends basic.PreProcessing with basic.Evaluation {
+  def apply(docs: RDD[String], corpus: RDD[Array[String]], meta: Map[String, MetaData]) =
+    new GradientBoosting(docs, corpus, meta)
+
 
   def main(args: Array[String]): Unit = {
 
-
-    /*
+  /*
     val (docs, vocab, matrix) = getInputData(sc)
 
     val metadata:  RDD[(String, (String, Array[String], Array[String], Array[String]))] = getMetaData(sc)
@@ -82,7 +84,7 @@ object ICTGradientBoosting extends basic.PreProcessing with basic.Evaluation {
     val parsedData = data.map(d => LabeledPoint(isICTConv(d._1._2._2(0)), d._2.toDense))
     val split = parsedData.randomSplit(Array(0.9, 0.1))
     val (training, test) = (split(0), split(1))
-*/
+  */
 
 
   }

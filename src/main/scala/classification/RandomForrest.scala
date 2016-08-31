@@ -11,8 +11,8 @@ import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
 /**
   * Created by chanjinpark on 2016. 7. 9..
   */
-class ICTRandomForreste(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[String, MetaData])
-  extends basic.TFIDF with basic.Evaluation {
+class RandomForreste(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[String, MetaData])
+  extends Serializable with  basic.TFIDF with basic.Evaluation {
 
   def run() = {
 
@@ -78,7 +78,7 @@ class ICTRandomForreste(docs: RDD[String], corpus: RDD[Array[String]], metadata:
   }
 }
 
-object ICTRandomForrest extends basic.PreProcessing with basic.Evaluation with basic.TFIDF {
+object RandomForrest extends basic.PreProcessing with basic.Evaluation with basic.TFIDF {
 
   def main(args: Array[String]): Unit = {
 

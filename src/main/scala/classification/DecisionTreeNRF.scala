@@ -2,16 +2,17 @@ package classification
 
 import basic.MetaData
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.mllib.classification.LogisticRegressionWithLBFGS
 import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.tree.{DecisionTree, GradientBoostedTrees}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
+
 /**
-  * Created by chanjinpark on 2016. 7. 7..
+  * Created by chanjinpark on 2016. 7. 9..
   */
-class ICTRegressione(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[String, MetaData])
-  extends basic.TFIDF with basic.Evaluation {
+class DecisionTreeNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[String, MetaData])
+  extends Serializable with  basic.TFIDF with basic.Evaluation {
 
   def run() = {
 
@@ -24,16 +25,21 @@ class ICTRegressione(docs: RDD[String], corpus: RDD[Array[String]], metadata: Ma
     val split = parsedData.randomSplit(Array(0.8, 0.2))
     val (training, test) = (split(0), split(1))
 
-    val numIterations = 100
-    val stepSize = 0.01
+    // Train a DecisionTree model.
+    //  Empty categoricalFeaturesInfo indicates all features are continuous.
+    val numClasses = 2
+    val categoricalFeaturesInfo = Map[Int, Int]()
+    val impurity = "gini"
+    val maxDepth = 4
+    val maxBins = 16
 
-    // Run training algorithm to build the model
-    val model = new LogisticRegressionWithLBFGS()
-      .setNumClasses(2).setIntercept(true)
-      .run(training)
+    val model = DecisionTree.trainClassifier(training, numClasses, categoricalFeaturesInfo,
+      impurity, maxDepth, maxBins)
 
-    // Evaluate model on training examples and compute training error
-    println("ICT count - " + test.filter(x => x.label == 1.0).count)
+    // Save and load model
+    //println("Learned classification forest model:\n" + model.toDebugString)
+    //model.save(sc, "target/tmp/myRandomForestClassificationModel")
+    //val sameModel = RandomForestModel.load(sc, "target/tmp/myRandomForestClassificationModel")
 
     val valuesAndPreds = test.map(p => (p.label, model.predict(p.features)))
 
@@ -53,27 +59,30 @@ class ICTRegressione(docs: RDD[String], corpus: RDD[Array[String]], metadata: Ma
     val (tp, tn, fp, fn, count) = precisionNFalsePositive(valuesAndPreds, 0.8)
     val cntIctconv = test.filter(_.label == 1.0).count
     println(s"$cntIctconv = $tp + $fn")
+
     println(f"전체 ${count} 개, 융합과제수는 ${cntIctconv} 개")
-    printMetrics(tp, tn, fp, fn, count)
-
-
-    def printMetrics(tp: Int, tn: Int, fp: Int, fn: Int, count: Int) = {
-      println(f"융합과제 맞춘 것은 ${tp}개, 비융합과제를 융합과제로 예측한 것은 ${fp}개")
-      println(f"비융합과제 맞춘 것은 ${tn}개, 융합과제를 비융합과제로 예측한 것은 ${fn}개")
-      println(f"Precision = ${tp.toDouble/(tp + fp)}%1.2f, Recall = ${tp.toDouble/(tp + fn)}%1.2f")
-      println(f"Accuracy = ${(tp + tn).toDouble/(tp + tn + fp + fn)}")
-    }
+    println(f"융합과제 맞춘 것은 ${tp}개, 비융합과제를 융합과제로 예측한 것은 ${fp}개")
+    println(f"비융합과제 맞춘 것은 ${tn}개, 융합과제를 비융합과제로 예측한 것은 ${fn}개")
+    println(f"Precision = ${tp.toDouble/(tp + fp)}%1.2f, Recall = ${tp.toDouble/(tp + fn)}%1.2f")
+    println(f"Accuracy = ${(tp + tn).toDouble/(tp + tn + fp + fn)}")
   }
 }
 
-object ICTRegression extends basic.PreProcessing with basic.Evaluation with basic.TFIDF {
+
+object DecisionTreeNRF extends basic.PreProcessing {
+
+  def apply(docs: RDD[String], corpus: RDD[Array[String]], meta: Map[String, MetaData]) =
+    new DecisionTreeNRF(docs, corpus, meta)
+
   def main(args: Array[String]): Unit = {
+
     val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
     val sc = new SparkContext(conf)
     Logger.getLogger("org").setLevel(Level.ERROR)
 
+    //val (docs, vocab, matrix) = getInputData(sc)
 
-/*    val evalresult = eval.map {
+    /*val evalresult = eval.map {
       case (metadata, vec) => {
         val point = LabeledPoint(isICTConv(metadata._2._2(0)), vec.toDense)
         val value = point.label
@@ -83,10 +92,6 @@ object ICTRegression extends basic.PreProcessing with basic.Evaluation with basi
       }
     }
 
-    val metric = evalresult.map(x => (x._1, x._2, x._3, x._4)).reduce((a,b) => (a._1 + b._1, a._2 + b._2, a._3 + b._3, a._4 + b._4))
-    val sum = metric._1 + metric._2 + metric._3 + metric._4
-    printMetrics(metric._1, metric._2, metric._3, metric._4, sum)
-    println(evalresult.count + " = " + sum)
 
 
     println("비융합과제인데 융합과제라고 한것의 내용 확인")
@@ -108,6 +113,8 @@ object ICTRegression extends basic.PreProcessing with basic.Evaluation with basi
     println("True Negatives")
     val truenegatives = evalresult.filter(_._3 == 1).map(_._5)
     truenegatives.take(5).map(md => Array(md._1, md._2._1, md._2._2.mkString(":")).mkString(", ")).foreach(println)
-    */
+
+*/
   }
+
 }
