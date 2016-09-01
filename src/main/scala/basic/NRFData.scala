@@ -17,11 +17,7 @@ object NRFData extends PreProcessing {
   val metafile = Array("NRF2013Meta.csv", "NRF2014Meta.csv", "NRF2015Meta.csv").map(x => workspace + x)
   val contdir = Array("content2013/", "content2014/", "content2015/").map(workspace + _)
 
-  def save = {
-    val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
-    val sc = new SparkContext(conf)
-    Logger.getLogger("org").setLevel(Level.ERROR)
-
+  def save(sc: SparkContext) = {
     val meta = getMetaData(sc, metafile).collect().toMap
     val (docs, corpus) = getCorpus(sc, contdir, meta)
 
@@ -35,25 +31,26 @@ object NRFData extends PreProcessing {
 
   }
 
-  def load = {
+  def load(sc: SparkContext) = {
+    val dir = "/Users/chanjinpark/GitHub/NRFAnalysis/"
     val meta = {
-      scala.io.Source.fromFile("data/meta.txt").getLines().map(l => {
+      scala.io.Source.fromFile(dir + "data/meta.txt").getLines().map(l => {
         val id = l.substring(0, l.indexOf("-"))
         val meta = MetaData(l.substring(l.indexOf("-") + 1))
         (id, meta)
       }).toMap
     }
 
+    val docs = sc.textFile(dir + "data/docs")
+    val corpus = sc.textFile(dir + "data/corpus").map(_.split(","))
+    (docs, corpus, meta)
+  }
+
+  def main(args: Array[String]): Unit = {
     val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
     val sc = new SparkContext(conf)
     Logger.getLogger("org").setLevel(Level.ERROR)
 
-    val docs = sc.textFile("data/docs")
-    val corpus = sc.textFile("data/corpus").map(_.split(","))
-
-  }
-
-  def main(args: Array[String]): Unit = {
-    save
+    save(sc)
   }
 }

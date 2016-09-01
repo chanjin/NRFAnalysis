@@ -23,26 +23,18 @@ object NRFExcelFile {
 
   private def matchCell(cell: XSSFCell) = {
     cell.getCellType match {
-      case Cell.CELL_TYPE_STRING => cell.getStringCellValue
-      case Cell.CELL_TYPE_NUMERIC => cell.getRawValue
+      case Cell.CELL_TYPE_STRING => cell.getStringCellValue.trim.replaceAll("[,\n\"]", " ")
+      case Cell.CELL_TYPE_NUMERIC => cell.getRawValue.trim.replaceAll("[,\n\"]", " ")
       case Cell.CELL_TYPE_BLANK => ""
       case _ => "*******"
     }
   }
-  def removeCommas(s: String) =
-    s.replaceAll(",", " ").replaceAll("[\n”\"]", "")
 
 
   def writeRow(row: XSSFRow, ncols: Int, dir: String) : String = {
     val name = row.getCell(21).getStringCellValue
     val content = (colContStart until colContEnd + 1).map(j => {
-      val cell = row.getCell(j)
-      cell.getCellType match {
-        case Cell.CELL_TYPE_STRING => cell.getStringCellValue
-        case Cell.CELL_TYPE_NUMERIC => cell.getRawValue
-        case Cell.CELL_TYPE_BLANK => ""
-        case _ => "*******"
-      }
+      matchCell(row.getCell(j))
     }).mkString("\n\n")
 
     val writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(dir + name + ".txt"), "UTF-8"));
@@ -53,7 +45,7 @@ object NRFExcelFile {
   }
 
   def writeRowOnlyMeta(row: XSSFRow, ncols: Int) : String = {
-    val name = row.getCell(21).getStringCellValue
+    //val name = row.getCell(21).getStringCellValue
     (0 until colContStart).map(j => matchCell(row.getCell(j))).mkString(sep)
   }
 

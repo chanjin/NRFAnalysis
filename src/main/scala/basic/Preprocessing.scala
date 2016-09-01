@@ -14,12 +14,12 @@ import org.apache.spark.sql.SQLContext
 // 4, 10, 10
 
 case class MetaData(title: String, mainArea: Array[String], nationArea: Array[String], sixTArea: Array[String]) {
-  override def toString: String = title + ":" + mainArea.mkString(",") + ":" +
-    nationArea.mkString(",") +  ":" +  sixTArea.mkString(",")
+  override def toString: String = title + ":::" + mainArea.mkString(",") + ":::" +
+    nationArea.mkString(",") +  ":::" +  sixTArea.mkString(",")
 }
 object MetaData {
   def apply(s: String): MetaData = {
-    val attr = s.split(":")
+    val attr = s.split(":::")
     new MetaData(attr(0), attr(1).split(","), attr(2).split(","), attr(3).split(","))
   }
 }
@@ -39,7 +39,7 @@ trait PreProcessing extends Serializable {
    */
   def getMetaData(sc: SparkContext, fs: Array[String]):  RDD[(String, MetaData)] = {
     def trim(s: String) = {
-      val patterns = "[()[0-9]-]"
+      val patterns = "[()[0-9]-/:]"
       s.replaceAll(patterns, "")
     }
     // 65개 컬럼, 21 means project id, 32 means area
@@ -150,7 +150,7 @@ trait PreProcessing extends Serializable {
   val pattern = "[^(가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9)]"
 
   def preprocess(s: String) = {
-    s.replaceAll(pattern, " ").replaceAll("[()]", " ")//.replaceAll(pattern2, " ").replaceAll("]", " ")
+    s.replaceAll(pattern, " ").replaceAll("[()/:]", " ")//.replaceAll(pattern2, " ").replaceAll("]", " ")
   }
 }
 
@@ -168,6 +168,6 @@ trait TFIDF {
 
 object PreprocessingTest extends PreProcessing {
   def main(args: Array[String]) : Unit = {
-    println(preprocess("aaaaa한글ab-b123*b)ccc•⦁▸◎dddii)"))
+    println(preprocess("aaaaa한글ab-b123*b)ccc•⦁▸◎dddii) 통합 유무선네트워크(Integrated Ship Area Network: i-SAN) 및 W"))
   }
 }

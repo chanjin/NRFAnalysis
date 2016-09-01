@@ -68,6 +68,7 @@ class LDAVizHTML( ldaModel: LDAModel,  vocabArray: Map[Int, String],  docs: Arra
   def summarizeDocs(doclist: Array[Long]) = {
     val summary = doclist.map(did => {
       val a = area(docs(did.toInt))
+      if ( a.mainArea.length < 2) println( did.toInt + " -- " + a.mainArea.mkString(","))
       (a.mainArea(0), a.mainArea(1), a.nationArea(0), a.sixTArea(0))
     }).foldLeft((Map[String, Int](), Map[String, Int](), Map[String, Int](), Map[String, Int]()))((res, as) => {
       (res._1 + (as._1 -> (res._1.getOrElse(as._1, 0) + 1)), res._2 + (as._2 -> (res._2.getOrElse(as._2, 0) + 1) ),

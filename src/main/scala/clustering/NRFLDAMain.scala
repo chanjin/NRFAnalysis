@@ -30,8 +30,15 @@ object NRFLDAMain extends PreProcessing {
     val sc = new SparkContext(conf)
     Logger.getLogger("org").setLevel(Level.ERROR)
 
+    /*
     val meta = getMetaData(sc, metafile).collect().toMap
     val (docs, corpus) = getCorpus(sc, contdir, meta)
+    */
+
+    //TODO: Processing Missing Meta Data
+
+    val (docs, corpus, meta) = NRFData.load(sc)
+
     val (vocab, matrix) = getMatrix(corpus)
 
     import org.apache.spark.mllib.clustering.LDA
