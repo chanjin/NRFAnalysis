@@ -78,7 +78,7 @@ class RandomForreste(docs: RDD[String], corpus: RDD[Array[String]], metadata: Ma
   }
 }
 
-object RandomForrest extends basic.PreProcessing with basic.Evaluation with basic.TFIDF {
+object RandomForrest  {
 
   def main(args: Array[String]): Unit = {
 

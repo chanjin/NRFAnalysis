@@ -16,13 +16,17 @@ object ClassifcationMain extends basic.PreProcessing {
     val sc = new SparkContext(conf)
     Logger.getLogger("org").setLevel(Level.ERROR)
 
+
     val meta = getMetaData(sc, metafile).collect().toMap
     val (docs, corpus) = getCorpus(sc, contdir, meta)
 
     //val dt = ICTDecisionTree(docs, corpus, meta)
     //val dt = GradientBoosting(docs, corpus, meta)
-    val dt = NaiveBayesNRF(docs, corpus, meta)
+    //val dt = NaiveBayesNRF(docs, corpus, meta)
+    //
+    // val dt = Regression(docs, corpus, meta)
 
+    val dt = NaiveBayesNRF(docs, corpus, meta)
     dt.run
   }
 }

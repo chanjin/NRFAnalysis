@@ -1,4 +1,4 @@
-package Hangeul
+package basic.hangeul
 
 /**
   * Created by chanjinpark on 2016. 6. 17..
@@ -15,7 +15,7 @@ object Test {
 
   def main(args: Array[String]): Unit = {
 
-    val in1 = Array("올해 크리스마스에는 눈이 내리지 않고 비교적 포근할 - 전망이다. Piki는", "하늘공원")
+    val in1 = Array("올해 크리스마스에는 눈이 내리지 않고 비교적 포근할 - 전망이다. Piki는", "하늘공원 Test임.")
     val words = in1.flatMap(l =>
       HangeulAnalysis.vocabWords(HangeulAnalysis.preprocess(l))
     )
@@ -26,21 +26,22 @@ object Test {
 object HangeulAnalysis {
 
   def main(args: Array[String]): Unit = {
-    val in1 = "올해 크리스마스에는 눈이 내리지 않고 비교적 포근할 전망이다."
+    val in1 = "올해 크리스마스에는 눈이 내리지 않고 비교적 포근할 전망이다. Piki는"
     println(morphAnalyze(in1))
-    println
+    println("-----------")
 
-    val in2 = "하늘공원"
+    val in2 = "하늘공원 Piki는"
     println(compoundNounAnalyze(in2))
     println
 
-    val in3 = "올 해크리스마스 에는 눈이내리지않고 비교적포근할전 망이다."
+    val in3 = "올 해크리스마스 에는 눈이내리지않고 비교적포근할전 망이다. Piki는"
     //println(wordSpaceAnalyze(in3))
     //println
 
-    val in4 = "올해 크리스마스에는 눈이 내리지 않고 비교적 포근할 전망이다"
+    val in4 = "올해 크리스마스에는 눈이 내리지 않고 비교적 포근할 전망이다 Test임."
     println(guideWords(in4))
 
+    /*
     val workspace ="/Users/chanjinpark/data/NRF2015/"
     val contdir = workspace + "content/"
 
@@ -58,27 +59,26 @@ object HangeulAnalysis {
       vocabWords(preprocess(l))
     ).toList
     println(words.mkString(","))
+    */
   }
 
-  val pattern = "[,()/?.\uDBC1\uDE5B￭\uF06C\uF09E▷\uDB80\uDEEF<\uDEEF\uF0A0１‘２\uF0D7･～\uF06D▶\uF09F\uDB80\uDEFB:\uDB80\uDEEB\uD835\uDF70(-[0-9]" +
-    ")\uDBFA\uDF16＊\uD835\uDEC3－\"／•>○\uF061：◼︎（，茶．＜＞３）九六補瀉法︎\uF02D\uDB80\uDEEE龍脈\uDB80\uDEB1\uDB80\uDEB2\uDB80\uDEB3捻轉ㅃ∙]"
-
-  //val pattern = "[,()/?.\uDBC1\uDE5B￭\uF06C\uF09E▷\uDB80\uDEEF<\uDEEF\uF0A0１２\uF0D7･～\uF06D▶\uF09F\uDB80\uDEFB:\uDB80\uDEEB\uD835\uDF70(-[0-9])\uDBFA\uDF16＊\uD835\uDEC3－／：◼︎（，．＜＞３）九六補瀉法︎\uF02D\uDB80\uDEEE龍脈\uDB80\uDEB1\uDB80\uDEB2\uDB80\uDEB3捻轉]"
+  val pattern = "[^(가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9)]"
   def preprocess(s: String) = {
-    s.replaceAll(pattern, "").replaceAll("]", "")
+    s.replaceAll(pattern, " ").replaceAll("[()]", " ")//.replaceAll(pattern2, " ").replaceAll("]", " ")
   }
-
 
   def morphAnalyze(source: String) = {
     val ma = new MorphAnalyzer
-    source.split(" ").map(x => ma.analyze(x)).mkString(" ")
+    source.split(" ").map(x => {
+      val res = ma.analyze(x)
+      println(res.mkString("\t") + ":" + res.map(_.getPos).mkString("\t"))
+      res.filter(_.getPos == PatternConstants.POS_NOUN).map(r => r.getStem).mkString("\t")
+    }).mkString("\n")
   }
 
-  /*def wordSpaceAnalyze(source: String, force: Boolean = false) = {
-    val wa = new WordSpaceAnalyzer
-    val s = if (force) source.replace(" ", "") else source
-    wa.analyze(s).toArray().map(_.toString).mkString(" ")
-  }*/
+  def nounExtract(s: String) ={
+
+  }
 
   def compoundNounAnalyze(source: String) = {
     val ca = new CompoundNounAnalyzer

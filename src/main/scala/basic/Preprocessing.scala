@@ -1,6 +1,7 @@
 package basic
 
 import org.apache.log4j.{Level, Logger}
+import org.apache.lucene.analysis.ko.morph.{MorphAnalyzer, PatternConstants}
 import org.apache.spark.mllib.feature.HashingTF
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
@@ -10,8 +11,18 @@ import org.apache.spark.sql.SQLContext
 /**
   * Created by chanjinpark on 2016. 7. 7..
   */
+// 4, 10, 10
 
-case class MetaData(title: String, mainArea: Array[String], nationArea: Array[String], sixTArea: Array[String])
+case class MetaData(title: String, mainArea: Array[String], nationArea: Array[String], sixTArea: Array[String]) {
+  override def toString: String = title + ":" + mainArea.mkString(",") + ":" +
+    nationArea.mkString(",") +  ":" +  sixTArea.mkString(",")
+}
+object MetaData {
+  def apply(s: String): MetaData = {
+    val attr = s.split(":")
+    new MetaData(attr(0), attr(1).split(","), attr(2).split(","), attr(3).split(","))
+  }
+}
 
 trait PreProcessing extends Serializable {
 
@@ -47,6 +58,7 @@ trait PreProcessing extends Serializable {
 
     meta
   }
+
 
   private def getInputData(sc: SparkContext, dir: Array[String]) = {
     val inputdata = sc.union(dir.map( d => {
@@ -86,15 +98,7 @@ trait PreProcessing extends Serializable {
     (docs, corpus)
   }
 
-  def getVocabMatrix(sc: SparkContext, dir: Array[String], meta: Map[String, MetaData]) = {
-    val inputdata = getInputData(sc, dir)
-    val docs = inputdata.keys//.map(s => s.substring(0, s.lastIndexOf(".txt")))
-    val corpus = inputdata.map{
-      case (id, strs) => {
-        (strs ++ preprocess(meta(id).title).split(" ")).filter(s => !stopWords.contains(s) && s.length != 0)
-      }
-    }
-
+  def getMatrix(corpus: RDD[Array[String]]) = {
     val vocab = corpus.flatMap(x => x).distinct.collect.zipWithIndex.toMap
     val matrix: RDD[(Long, Vector)] = corpus.zipWithIndex.map {
       case (tokens, docid) => {
@@ -107,8 +111,7 @@ trait PreProcessing extends Serializable {
         (docid, new SparseVector(vocab.size, vec.keys.toArray, vec.values.toArray))
       }
     }
-
-    (docs, vocab, matrix)
+    (vocab, matrix)
   }
 
 
@@ -120,7 +123,8 @@ trait PreProcessing extends Serializable {
     val ma = new MorphAnalyzer
     val words = source.split(" ").filter(_.length > 1).flatMap(s => {
       val morphemes = ma.analyze(s.trim).map(s => s.asInstanceOf[AnalysisOutput])
-      val o = morphemes.filter(m => m.getPos == 'N')
+      //val o = morphemes.filter(_.getPos == PatternConstants.POS_NOUN).map(r => r.getStem)
+      val o = morphemes.filter(m => m.getPos == PatternConstants.POS_NOUN) //'N')
 
       if (o.length > 1) {
         List(o.head.getStem).filter(_.length > 1)
@@ -138,6 +142,7 @@ trait PreProcessing extends Serializable {
     words
   }
 
+
   /*val pattern = "[－()\\-,()/?.\uDBC1\uDE5B￭\uF06C\uF09E▷\uDB80\uDEEF<\uDEEF\uF0A0１‘２\uF0D7･～\uF06D▶\uF09F\uDB80\uDEFB:" +
     "\uDB80\uDEEB\uD835\uDF70~=---\";;「ㆍ’'“”／·•⦁▸◎>○\uF061：　╸∎▪◦˚◼︎●■→*（(((，茶．·＜＞+①②③➌④" +
     "３□）)))九六補瀉法︎\uF02D\uDB80\uDEEE龍脈\uDB80\uDEB1\uDB80\uDEB2\uDB80\uDEB3捻轉ㅃ∙㉮ㅇ///◆\uD835\uDEC3＊\uDBFA\uDF16]" //
@@ -145,7 +150,7 @@ trait PreProcessing extends Serializable {
   val pattern = "[^(가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9)]"
 
   def preprocess(s: String) = {
-    s.replaceAll(pattern, " ")//.replaceAll(pattern2, " ").replaceAll("]", " ")
+    s.replaceAll(pattern, " ").replaceAll("[()]", " ")//.replaceAll(pattern2, " ").replaceAll("]", " ")
   }
 }
 
@@ -163,6 +168,6 @@ trait TFIDF {
 
 object PreprocessingTest extends PreProcessing {
   def main(args: Array[String]) : Unit = {
-    println(preprocess("aaaaa한글ab-b123*b)ccc•⦁▸◎ddd"))
+    println(preprocess("aaaaa한글ab-b123*b)ccc•⦁▸◎dddii)"))
   }
 }

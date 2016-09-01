@@ -1,13 +1,9 @@
+package clustering
+
 
 import basic._
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.mllib.clustering.LDAModel
-import org.apache.spark.mllib.linalg._
-import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
-
-import scala.collection.Map
-import scala.collection.JavaConversions._
 /**
   * Created by chanjinpark on 2016. 6. 17..
   */
@@ -35,7 +31,8 @@ object NRFLDAMain extends PreProcessing {
     Logger.getLogger("org").setLevel(Level.ERROR)
 
     val meta = getMetaData(sc, metafile).collect().toMap
-    val (docs, vocab, matrix) = getVocabMatrix(sc, contdir, meta)
+    val (docs, corpus) = getCorpus(sc, contdir, meta)
+    val (vocab, matrix) = getMatrix(corpus)
 
     import org.apache.spark.mllib.clustering.LDA
     // Set LDA parameters

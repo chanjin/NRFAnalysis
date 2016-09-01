@@ -65,6 +65,7 @@ class GradientBoosting(docs: RDD[String], corpus: RDD[Array[String]], metadata: 
 
 
 object GradientBoosting extends basic.PreProcessing with basic.Evaluation {
+
   def apply(docs: RDD[String], corpus: RDD[Array[String]], meta: Map[String, MetaData]) =
     new GradientBoosting(docs, corpus, meta)
 

@@ -3,6 +3,7 @@ package classification
 import basic.MetaData
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.mllib.classification.{NaiveBayes, NaiveBayesModel}
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 import org.apache.spark.mllib.feature.StandardScaler
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
@@ -16,20 +17,18 @@ import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
 
 class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[String, MetaData])
   extends Serializable with  basic.TFIDF with basic.Evaluation {
+
+  val (tfidf, hashtf) = getMatrix(corpus)
+  def isICTConv(s: String) = if (s.equals("ICT·융합연구")) 1.0 else 0.0
+  val parsedData = docs.zip(tfidf).map(d => {
+    LabeledPoint(isICTConv(metadata(d._1).mainArea(0)), d._2.toDense)
+  }).randomSplit(Array(0.8, 0.2))
+
+  val (training, test) = (parsedData(0), parsedData(1))
+
   def run = {
-
-    val (tfidf, hashtf) = getMatrix(corpus)
-
-    def isICTConv(s: String) = if (s.equals("ICT·융합연구")) 1.0 else 0.0
-    val parsedData = docs.zip(tfidf).map(d => {
-      LabeledPoint(isICTConv(metadata(d._1).mainArea(0)), d._2.toDense)
-    })
-    val split = parsedData.randomSplit(Array(0.8, 0.2))
-    val (training, test) = (split(0), split(1))
-
     val model = NaiveBayes.train(training, lambda = 1.0, modelType = "multinomial")
     val valuesAndPreds = test.map(p => (p.label, model.predict(p.features)))
-
 
     val mse = MSE(valuesAndPreds)
     println("training Mean Squared Error = " + mse)
@@ -54,10 +53,9 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
 
     println(f"Accuracy = ${(tp + tn).toDouble/(tp + tn + fp + fn)}")
   }
-
 }
 
-object NaiveBayesNRF extends basic.PreProcessing with basic.Evaluation with basic.TFIDF {
+object NaiveBayesNRF  {
 
   def apply(docs: RDD[String], corpus: RDD[Array[String]], meta: Map[String, MetaData]) =
     new NaiveBayesNRF(docs, corpus, meta)

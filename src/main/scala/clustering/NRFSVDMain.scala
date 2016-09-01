@@ -1,6 +1,7 @@
+package clustering
+
 import java.io.{FileOutputStream, PrintStream}
 
-import basic._
 import breeze.linalg.{DenseMatrix => BDenseMatrix, DenseVector => BDenseVector, SparseVector => BSparseVector}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.mllib.linalg._
@@ -16,7 +17,7 @@ import scala.collection.mutable.ArrayBuffer
   */
 
 
-object NRFSVDMain extends PreProcessing {
+object NRFSVDMain extends basic.PreProcessing {
 
   val workspace ="/Users/chanjinpark/data/NRFdata/"
   val metafile = Array("NRF2013Meta.csv", "NRF2014Meta.csv", "NRF2015Meta.csv").map(x => workspace + x)
@@ -28,7 +29,8 @@ object NRFSVDMain extends PreProcessing {
     Logger.getLogger("org").setLevel(Level.ERROR)
 
     val meta = getMetaData(sc, metafile).collect().toMap
-    val (docs, vocab, matrix) = getVocabMatrix(sc, contdir, meta)
+    val (docs, corpus) = getCorpus(sc, contdir, meta)
+    val (vocab, matrix) = getMatrix(corpus)
 
     matrix.cache()
     // get TF-IDF. matrix: RDD[(Long, Vector)]. docid, term-frequency

@@ -66,7 +66,11 @@ class Regression(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map[St
   }
 }
 
-object Regression extends basic.PreProcessing with basic.Evaluation with basic.TFIDF {
+object Regression  {
+
+  def apply(docs: RDD[String], corpus: RDD[Array[String]], meta: Map[String, MetaData]) =
+    new Regression(docs, corpus, meta)
+
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
     val sc = new SparkContext(conf)
