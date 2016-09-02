@@ -27,9 +27,7 @@ object MetaData {
 trait PreProcessing extends Serializable {
 
   var stopWords: Set[String] = null
-
   val stopAreas: Set[String] = Set("0", "6T", "기타(위의 미래유망신기술(6T) 103개 세분류에 속하지 않는 기타 연구)")
-
   def replace(s: String) = s.replaceAll("[-()[0-9]]", "").split("/")
 
   /*
@@ -79,9 +77,10 @@ trait PreProcessing extends Serializable {
       }
     ))
 
-    val stopWordsSet = Set("of", "and", "in", "the", "Mixed", "근간한", "대한", "활용", "관련", "가능", "연구", "개발", "통한",
+    val stopWordsSet = Set("of", "and", "in", "the", "Mixed", "for", "근간한", "대한", "활용", "관련", "가능", "연구", "개발", "통한",
       "제시", "제공", "이용", "적용", "다양", "0", "의한", "ET", "중요", "to", "be", "by", "with", "will", "on", "부터", "및",
-      "위한", "이용한", "개발", "관한", "미치는", "기반의", "활용한", "규명", "새로운", "기반", "유래", "기술", "시스템", "따른")
+      "위한", "이용한", "개발", "관한", "미치는", "기반의", "활용한", "규명", "새로운", "기반", "유래", "기술", "시스템", "따른", "II",
+    "방안", "기법")
     stopWords = sc.broadcast(stopWordsSet).value
 
     inputdata

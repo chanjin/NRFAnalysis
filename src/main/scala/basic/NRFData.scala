@@ -28,22 +28,27 @@ object NRFData extends PreProcessing {
     val bw = new BufferedWriter(new FileWriter(file))
     meta.foreach(m => bw.write(m._1 + "-" + m._2.toString +"\n"))
     bw.close()
-
+    (docs, corpus, meta)
   }
 
   def load(sc: SparkContext) = {
-    val dir = "/Users/chanjinpark/GitHub/NRFAnalysis/"
-    val meta = {
-      scala.io.Source.fromFile(dir + "data/meta.txt").getLines().map(l => {
-        val id = l.substring(0, l.indexOf("-"))
-        val meta = MetaData(l.substring(l.indexOf("-") + 1))
-        (id, meta)
-      }).toMap
+    if ( ! new File("data/docs").exists()) {
+      save(sc)
     }
+    else {
+        val dir = "/Users/chanjinpark/GitHub/NRFAnalysis/"
+        val meta = {
+          scala.io.Source.fromFile(dir + "data/meta.txt").getLines().map(l => {
+            val id = l.substring(0, l.indexOf("-"))
+            val meta = MetaData(l.substring(l.indexOf("-") + 1))
+            (id, meta)
+          }).toMap
+        }
 
-    val docs = sc.textFile(dir + "data/docs")
-    val corpus = sc.textFile(dir + "data/corpus").map(_.split(","))
-    (docs, corpus, meta)
+      val docs = sc.textFile(dir + "data/docs")
+      val corpus = sc.textFile(dir + "data/corpus").map(_.split(","))
+      (docs, corpus, meta)
+    }
   }
 
   def main(args: Array[String]): Unit = {

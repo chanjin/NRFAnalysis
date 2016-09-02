@@ -3,6 +3,7 @@ package clustering
 
 import basic._
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.mllib.clustering.DistributedLDAModel
 import org.apache.spark.{SparkConf, SparkContext}
 /**
   * Created by chanjinpark on 2016. 6. 17..
@@ -22,6 +23,14 @@ object NRFLDAMain extends PreProcessing {
     val idx = id.substring(0, 4).toInt - 2013
     if ( idx >= 0 && idx < contdir.size) contdir(idx) + id + ".txt"
     else contdir(0) + id + ".txt"
+  }
+
+  def loadModel = {
+    val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
+    val sc = new SparkContext(conf)
+    Logger.getLogger("org").setLevel(Level.ERROR)
+
+    val model = DistributedLDAModel.load(sc, "model/NRFLDAModel")
   }
 
 
@@ -50,9 +59,9 @@ object NRFLDAMain extends PreProcessing {
 
     val lda = new LDA().setK(numTopics).setMaxIterations(100)
     val ldaModel = lda.run(matrix)
-
     val id2vocab = vocab.map(_.swap)
 
+    ldaModel.save(sc, "model/NRFLDAModel")
 
     val ldahtml = new LDAVizHTML(ldaModel, id2vocab, docs.collect(), meta, numTerms, docpath)
 

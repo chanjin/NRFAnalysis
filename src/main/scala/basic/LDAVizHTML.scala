@@ -64,17 +64,22 @@ class LDAVizHTML( ldaModel: LDAModel,  vocabArray: Map[Int, String],  docs: Arra
   }
 
 
+  def getFirstOrNone(arr: Array[String]) = if ( arr.length == 0 ) "NONE" else arr(0)
   // CRB, Nat, 6T
   def summarizeDocs(doclist: Array[Long]) = {
     val summary = doclist.map(did => {
       val a = area(docs(did.toInt))
       if ( a.mainArea.length < 2) println( did.toInt + " -- " + a.mainArea.mkString(","))
-      (a.mainArea(0), a.mainArea(1), a.nationArea(0), a.sixTArea(0))
+
+      (a.mainArea(0), a.mainArea(1), getFirstOrNone(a.nationArea), getFirstOrNone(a.sixTArea))
+
     }).foldLeft((Map[String, Int](), Map[String, Int](), Map[String, Int](), Map[String, Int]()))((res, as) => {
       (res._1 + (as._1 -> (res._1.getOrElse(as._1, 0) + 1)), res._2 + (as._2 -> (res._2.getOrElse(as._2, 0) + 1) ),
         res._3 + (as._3 -> (res._3.getOrElse(as._3, 0) + 1)), res._4 + (as._4 -> (res._4.getOrElse(as._4, 0) + 1)))
     })
+
     def makestr(m: Map[String, Int]) = m.toList.sortBy(-_._2).map(kv => kv._1 + " - " + kv._2).mkString(",\t")
+
     (makestr(summary._1), makestr(summary._2), makestr(summary._3), makestr(summary._4))
   }
 

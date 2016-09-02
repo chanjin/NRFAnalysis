@@ -1,4 +1,4 @@
-package basic.hangeul
+package basic
 
 /**
   * Created by chanjinpark on 2016. 6. 16..
