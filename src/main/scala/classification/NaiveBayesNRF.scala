@@ -100,6 +100,25 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
     println(s"Weighted F1 score: ${metrics.weightedFMeasure}")
     println(s"Weighted false positive rate: ${metrics.weightedFalsePositiveRate}")
   }
+
+  def saveMulticlass(getLabel: MetaData => Int, classes: Map[Int, String]) = {
+    val (tfidf, hashtf) = getMatrix(corpus)
+    val parsedData = docs.zip(tfidf).map(d => {
+      (d._1, LabeledPoint(getLabel(metadata(d._1)), d._2.toDense))
+    }).randomSplit(Array(0.8, 0.2))
+
+    val (training, test) = (parsedData(0), parsedData(1))
+
+    val model = NaiveBayes.train(training.map(_._2), lambda = 1.0, modelType = "multinomial")
+    val predictionAndLabels = test.map(p => p._1 + "," + model.predict(p._2.features) + "," + p._2.label).collect
+
+    import java.io._
+    val f = new BufferedWriter(new FileWriter(new File("data/predlabel.txt")))
+    predictionAndLabels.foreach(pl => f.write(pl + "\n"))
+    f.close()
+
+    //predictionAndLabels.saveAsTextFile("data/predlabel")
+  }
 }
 
 object NaiveBayesNRF  {
@@ -134,7 +153,8 @@ object NaiveBayesNRF  {
     (0 until crb.size).foreach( x => println(x + ": " + i2crb(x) + " - " + crpcls(i2crb(x))))
 
     def getLabel(m: MetaData) = crb(m.mainArea(1)) // CRB 분류
-    dt.runMulticlass(getLabel, crb.map(_.swap))
+    //dt.runMulticlass(getLabel, crb.map(_.swap))
+    dt.saveMulticlass(getLabel, crb.map(_.swap))
   }
 
 }
