@@ -8,3 +8,5 @@ metastore_db/
 *.log
 jar/
 jars/
+model/
+pythoncode/.ipynb_checkpoints

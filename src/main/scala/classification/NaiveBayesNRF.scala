@@ -68,6 +68,8 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
     val model = NaiveBayes.train(training, lambda = 1.0, modelType = "multinomial")
     val predictionAndLabels = test.map(p => (model.predict(p.features), p.label))
 
+    // 결과 저장 (docid, pred, real)
+    predictionAndLabels.map(x => x._1 + ", " + x._2).saveAsTextFile("data/testresult")
 
     val metrics = new MulticlassMetrics(predictionAndLabels)
     println("Confusion matrix:")
