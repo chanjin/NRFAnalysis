@@ -103,6 +103,20 @@ trait PreProcessing extends Serializable {
     (vocab, matrix)
   }
 
+  def getMatrixTFIDF(corpus: RDD[Array[String]]) = {
+    import org.apache.spark.mllib.feature.{HashingTF, IDF}
+    val hashingTF = new HashingTF() // Hashing을 이용해서 Term Frequency를 구함
+    val tf = hashingTF.transform(corpus.map(c => c.toIndexedSeq))
+    tf.cache()
+
+    val idf = new IDF(minDocFreq = 2).fit(tf)
+    val vocab = corpus.flatMap(x => x).distinct.map(x => (hashingTF.indexOf(x), x)).collect.toMap
+    val tfidf = idf.transform(tf)
+
+    (vocab.map(_.swap), tfidf.zipWithIndex.map(_.swap))
+  }
+
+
 
   import org.apache.lucene.analysis.ko.morph._
   import scala.collection.JavaConversions._
@@ -127,7 +141,8 @@ trait PreProcessing extends Serializable {
       }
     })
 
-    words
+
+    words.filter(s => !s.forall(_.isDigit) && !stoppattern(s))
   }
 
 
@@ -141,7 +156,10 @@ trait PreProcessing extends Serializable {
     s.replaceAll(pattern, " ").replaceAll("[()/:]", " ")//.replaceAll(pattern2, " ").replaceAll("]", " ")
   }
 
-
+  def stoppattern(s: String): Boolean = {
+    val pattern = "[0-9]+(차|개|점|명)"
+    s.matches(pattern)
+  }
 }
 
 trait TFIDF {
@@ -159,5 +177,7 @@ trait TFIDF {
 object PreprocessingTest extends PreProcessing {
   def main(args: Array[String]) : Unit = {
     println(preprocess("aaaaa한글ab-b123*b)ccc•⦁▸◎dddii) 통합 유무선네트워크(Integrated Ship Area Network: i-SAN) 및 W"))
+
+    Array("1차", "2개", "4점", "3차전", "110개").foreach(s => println(s + ":" + stoppattern(s)))
   }
 }

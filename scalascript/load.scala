@@ -3,6 +3,10 @@
   * Created by chanjinpark on 2016. 9. 6..
   */
 
+
+import org.apache.spark.mllib.linalg.{SparseVector, Vector}
+import org.apache.spark.rdd.RDD
+
 val dir = "/Users/chanjinpark/GitHub/NRFAnalysis/"
 val docs = sc.textFile(dir + "data/docs")
 
@@ -27,16 +31,31 @@ val meta = {
 val docs = sc.textFile(dir + "data/docs")
 val corpus = sc.textFile(dir + "data/corpus").map(_.split(","))
 
-import org.apache.spark.mllib.feature.{HashingTF, IDF}
-import org.apache.spark.mllib.linalg.Vector
-import org.apache.spark.rdd.RDD
+def getMatrixTFIDF(corpus: RDD[Array[String]]) =
 
-val hashingTF = new HashingTF() // Hashing을 이용해서 Term Frequency를 구함
-val tf: RDD[Vector] = hashingTF.transform(corpus.map(c => c.toIndexedSeq))
-tf.cache()
+val (vocab, matrix) = {
+  import org.apache.spark.mllib.feature.{HashingTF, IDF}
+  val hashingTF = new HashingTF() // Hashing을 이용해서 Term Frequency를 구함
+  val tf = hashingTF.transform(corpus.map(c => c.toIndexedSeq))
+  tf.cache()
 
-val idf = new IDF().fit(tf)
-val (tfidf, hashtf) = (idf.transform(tf), hashingTF)
+  val idf = new IDF(minDocFreq = 2).fit(tf)
+  val vocab = corpus.flatMap(x => x).distinct.map(x => (hashingTF.indexOf(x), x)).collect.toMap
+  val tfidf = idf.transform(tf)
+
+  (vocab.map(_.swap), tfidf.zipWithIndex.map(_.swap))
+}
 
 
 
+/*
+val (tfidf, hashtf, tf) = {
+  import org.apache.spark.mllib.feature.{HashingTF, IDF}
+  val hashingTF = new HashingTF() // Hashing을 이용해서 Term Frequency를 구함
+  val tf: RDD[Vector] = hashingTF.transform(corpus.map(c => c.toIndexedSeq))
+  tf.cache()
+
+  val idf = new IDF(minDocFreq = 2).fit(tf)
+  (idf.transform(tf), hashingTF, tf)
+}
+*/
