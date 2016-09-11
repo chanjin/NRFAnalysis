@@ -48,13 +48,13 @@ object NRFLDAMain extends PreProcessing {
 
     val (docs, corpus, meta) = NRFData.load(sc)
 
-    //val (vocab, matrix) = getMatrix(corpus)
-    val (vocab, matrix) = getMatrixTFIDF(corpus)
+    val (vocab, matrix) = getMatrix(corpus)
+    //val (vocab, matrix) = getMatrixTFIDF(corpus)
 
     import org.apache.spark.mllib.clustering.LDA
     // Set LDA parameters
     val numTopics = 20
-    val numTerms = 20
+    val numTerms = 10
     docs.cache()
     matrix.cache()
 
@@ -62,7 +62,7 @@ object NRFLDAMain extends PreProcessing {
     val ldaModel = lda.run(matrix)
     val id2vocab = vocab.map(_.swap)
 
-    ldaModel.save(sc, "data/lda/NRFLDAModel")
+    // ldaModel.save(sc, "data/lda/NRFLDAModel")
 
     val ldahtml = new LDAVizHTML(ldaModel, id2vocab, docs.collect(), meta, numTerms, docpath)
 
@@ -81,6 +81,7 @@ object NRFLDAMain extends PreProcessing {
 
     println(vocab.size)
     println(vocab.keys.mkString(", "))
+    sc.stop()
   }
 }
 

@@ -16,7 +16,7 @@ class DecisionTreeNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: M
 
   def run() = {
 
-    val (tfidf, hashtf) = getMatrix(corpus)
+    val (tfidf, hashtf, idf) = getMatrix(corpus)
 
     def isICTConv(s: String) = if (s.equals("ICT·융합연구")) 1.0 else 0.0
     val parsedData = docs.zip(tfidf).map(d => {
