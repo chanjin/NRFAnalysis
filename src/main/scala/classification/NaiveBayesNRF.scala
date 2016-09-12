@@ -6,11 +6,10 @@ import org.apache.log4j.{Level, Logger}
 import org.apache.spark.mllib.classification.{NaiveBayes, NaiveBayesModel}
 import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics}
 import org.apache.spark.mllib.feature.StandardScaler
-import org.apache.spark.mllib.linalg.Vector
+import org.apache.spark.mllib.linalg._
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
 
 /**
   * Created by chanjinpark on 2016. 6. 21..
@@ -20,7 +19,7 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
   extends Serializable with  basic.TFIDF with basic.Evaluation {
 
   def run = {
-    val (tfidf, hashtf) = getMatrix(corpus)
+    val (tfidf, hashtf, idf) = getMatrix(corpus)
     def isICTConv(s: String) = if (s.equals("ICT·융합연구")) 1.0 else 0.0
     val parsedData = docs.zip(tfidf).map(d => {
       LabeledPoint(isICTConv(metadata(d._1).mainArea(0)), d._2.toDense)
@@ -61,14 +60,23 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
     import java.io._
     val dir = "data/naivebayes/"
 
-    val (tfidf, hashtf) = getMatrix(corpus)
-    val parsedData = docs.zip(tfidf).map(d => {
+    //val (matrix, hashtf, idf) = getMatrix(corpus)
+    val (matrix, vocabs) = getMatrixFreqOnly(corpus)
+    val parsedData = docs.zip(matrix).map(d => {
       LabeledPoint(getLabel(metadata(d._1)), d._2.toDense)
-    }).randomSplit(Array(0.8, 0.2))
+    }).randomSplit(Array(0.7, 0.3))
 
     val (training, test) = (parsedData(0), parsedData(1))
 
     val model = NaiveBayes.train(training, lambda = 0.5, modelType = "multinomial")
+
+    /*println(s"전체 과제 수: ${tfidf.count()}")
+    println(s"학습에 사용한 과제 수: ${training.count()}, 테스트 과제 수: ${test.count()}")
+    println("CRB 분류 별 과제 수 (Training)")
+    training.groupBy(lp => lp.label).map(x => x._1 + " " + classes(x._1.toInt) + ": " + x._2.size).collect.foreach(println)
+    println("CRB 분류 별 과제 수 (Testing)")
+    test.groupBy(lp => lp.label).map(x => x._1 + " " + classes(x._1.toInt) + ": " + x._2.size).collect.foreach(println)
+    */
 
     val modelfile = dir + "model"
     if (new File(modelfile).exists()) println(s"$modelfile exists, so skip file generation ")
@@ -146,7 +154,7 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
   }
 
   def saveMulticlass(getLabel: MetaData => Int, classes: Map[Int, String]) = {
-    val (tfidf, hashtf) = getMatrix(corpus)
+    val (tfidf, hashtf, idf) = getMatrix(corpus)
     val parsedData = docs.zip(tfidf).map(d => {
       (d._1, LabeledPoint(getLabel(metadata(d._1)), d._2.toDense))
     }).randomSplit(Array(0.8, 0.2))
@@ -165,6 +173,124 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
 
     predictionAndLabels.saveAsTextFile("data/predlabel")
   }
+
+  def runMulticlassModels(sc: SparkContext, getLabel: MetaData => Int, classes: Map[Int, String]) = {
+    import java.io._
+    val dir = "data/naivebayes/"
+
+    //val (matrix, hashtf, idf) = getMatrix(corpus)
+    val (matrix, vocabs) = getMatrixFreqOnly(corpus)
+    val parsedData = docs.zip(matrix).map(d => {
+      (getLabel(metadata(d._1)), d._2.toDense)
+    }).randomSplit(Array(0.8, 0.2))
+
+    val (training, test) = (parsedData(0), parsedData(1))
+    val lambdaval = 1.0
+    val models = classes.map(c => {
+      val data = training.map(t => LabeledPoint(if (t._1 == c._1) 1.0 else 0.0, t._2))
+      val model = NaiveBayes.train(data, lambda = lambdaval, modelType = "multinomial")
+      (c._1, model)
+    })
+
+    val predLabels = models.map(m => {
+      val data = test.map(t => LabeledPoint(if (t._1 == m._1) 1.0 else 0.0, t._2))
+      (m._1, data.map(p => (m._2.predict(p.features), p.label)))
+    })
+
+    predLabels.foreach(pl => {
+      println(pl._1 + ": " + classes(pl._1))
+
+      val metrics = new BinaryClassificationMetrics(pl._2)
+      // Precision by threshold
+      val precision = metrics.precisionByThreshold
+      precision.foreach { case (t, p) =>
+        println(s"Threshold: $t, Precision: $p")
+      }
+
+      // Recall by threshold
+      val recall = metrics.recallByThreshold
+      recall.foreach { case (t, r) =>
+        println(s"Threshold: $t, Recall: $r")
+      }
+
+      val f1Score = metrics.fMeasureByThreshold
+      f1Score.foreach { case (t, f) =>
+        println(s"Threshold: $t, F-score: $f, Beta = 1")
+      }
+
+      val beta = 0.5
+      val fScore = metrics.fMeasureByThreshold(beta)
+      f1Score.foreach { case (t, f) =>
+        println(s"Threshold: $t, F-score: $f, Beta = 0.5")
+      }
+
+      val mse = MSE(pl._2.map(_.swap))
+      println("training Mean Squared Error = " + mse)
+
+      val loglossErr = logLoss(pl._2.map(_.swap))
+      println("Log Loss Error = " + loglossErr)
+    })
+
+
+    def predictMulticlass(label: Int, features: DenseVector) = {
+      val ps = models.map(m => (m._1, m._2.predict(features)))
+      ps.tail.foldLeft(ps.head)((r, x) => {
+        if (r._2 > x._2) r else x
+      })._1
+    }
+
+    val predLabelMC = test.map(p => {
+      (predictMulticlass(p._1, p._2).toDouble, p._1.toDouble)
+    })
+
+    val metrics = new MulticlassMetrics(predLabelMC)
+
+    val labels = metrics.labels
+    labels.foreach { l =>
+      println(s"Precision($l) = " + metrics.precision(l))
+    }
+
+    // Recall by label
+    labels.foreach { l =>
+      println(s"Recall($l) = " + metrics.recall(l))
+    }
+
+    // False positive rate by label
+    labels.foreach { l =>
+      println(s"FPR($l) = " + metrics.falsePositiveRate(l))
+    }
+
+    // F-measure by label
+    labels.foreach { l =>
+      println(s"F1-Score($l) = " + metrics.fMeasure(l))
+    }
+
+    // Weighted stats
+    println(s"Weighted precision: ${metrics.weightedPrecision}")
+    println(s"Weighted recall: ${metrics.weightedRecall}")
+    println(s"Weighted F1 score: ${metrics.weightedFMeasure}")
+    println(s"Weighted false positive rate: ${metrics.weightedFalsePositiveRate}")
+
+    def predictForAll(label: Int, features: DenseVector) = {
+      models.map(m => (m._1, m._2.predict(features)))
+    }
+
+    val eval = docs.zip(corpus).randomSplit(Array(0.01, 0.99))(0).take(5)
+
+    eval.foreach(e => {
+      val (d, c) = (e._1, e._2.toIndexedSeq)
+      println(d)
+      println(c.length)
+      println(c.mkString(","))
+
+      //val tf = hashtf.transform(c)  //println(c.map(x => hashingTF.indexOf(x)))
+      //val tfidf = idf.transform(tf)
+
+      //println(predictForAll(getLabel(metadata(d)), tfidf.toDense))
+      println()
+    })
+  }
+
 }
 
 object NaiveBayesNRF  {
@@ -192,7 +318,6 @@ object NaiveBayesNRF  {
     val (docs, corpus, meta) = NRFData.load(sc)
     val dt = NaiveBayesNRF(docs, corpus, meta)
 
-
     val crb: Map[String, Int] = meta.map(_._2.mainArea(1)).toList.distinct.sortWith(_.compare(_) < 0).zipWithIndex.toMap
     val crpcls = meta.groupBy(_._2.mainArea(1)).map(x => (x._1, x._2.size))
     val i2crb = crb.map(_.swap)
@@ -202,7 +327,6 @@ object NaiveBayesNRF  {
     dt.runMulticlass(sc, getLabel, crb.map(_.swap))
 
     sc.stop
-
     //dt.saveMulticlass(getLabel, crb.map(_.swap))
   }
 

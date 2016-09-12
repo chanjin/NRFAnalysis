@@ -20,7 +20,7 @@ class RandomForrestsNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata:
 
   def run() = {
 
-    val (tfidf, hashtf) = getMatrix(corpus)
+    val (tfidf, hashtf, idf) = getMatrix(corpus)
 
     def isICTConv(s: String) = if (s.equals("ICT·융합연구")) 1.0 else 0.0
     val parsedData = docs.zip(tfidf).map(d => {
@@ -85,7 +85,7 @@ class RandomForrestsNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata:
     import java.io._
     val dir = "data/randomforrest/"
 
-    val (tfidf, hashtf) = getMatrix(corpus)
+    val (tfidf, hashtf, idf) = getMatrix(corpus)
     val parsedData = docs.zip(tfidf).map(d => {
       LabeledPoint(getLabel(metadata(d._1)), d._2.toDense)
     }).randomSplit(Array(0.8, 0.2))

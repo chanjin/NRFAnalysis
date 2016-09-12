@@ -31,8 +31,6 @@ val meta = {
 val docs = sc.textFile(dir + "data/docs")
 val corpus = sc.textFile(dir + "data/corpus").map(_.split(","))
 
-def getMatrixTFIDF(corpus: RDD[Array[String]]) =
-
 val (vocab, matrix) = {
   import org.apache.spark.mllib.feature.{HashingTF, IDF}
   val hashingTF = new HashingTF() // Hashing을 이용해서 Term Frequency를 구함

@@ -28,5 +28,4 @@ libraryDependencies += "arirang.lucene-analyzer-5.0" % "arirang.lucene-analyzer-
 libraryDependencies += "com.argo" % "arirang-morph" % "1.0.0" from "file:///Users/chanjinpark/GitHub/NRFAnalysis/jars/arirang-morph-1.0.0.jar"
 
 
-
 //libraryDependencies += "org.apache.tika" % "tika-parsers" % "1.13"

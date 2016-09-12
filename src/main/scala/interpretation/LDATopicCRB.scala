@@ -14,6 +14,7 @@ class LDATopicCRB {
 }
 
 object LDATopicCRB extends App {
+  val dir = "/Users/chanjinpark/GitHub/NRFAnalysis/"
 
   // 각 주제 별 구성 CRB 분류체계는 어떻게 되는 지를 보여줌
   val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
@@ -21,24 +22,24 @@ object LDATopicCRB extends App {
   Logger.getLogger("org").setLevel(Level.ERROR)
 
   val (docs, corpus, meta) = NRFData.load(sc)
-  val (vocab, matrix) = getMatrixTFIDF(corpus)
+  val (vocab, matrix) = getMatrix(corpus)
   val id2vocab = vocab.map(_.swap)
 
   import org.apache.spark.mllib.clustering.DistributedLDAModel
-  val dir = "/Users/chanjinpark/GitHub/NRFAnalysis/"
-  val model = DistributedLDAModel.load(sc, dir + "data/lda/NRFLDAModel")
-
-  model.describeTopics()
-
-  val distmodel = model.asInstanceOf[DistributedLDAModel]
-  val topics = distmodel.describeTopics(maxTermsPerTopic = 10)
-  val numTopics = distmodel.k
 
   // 각 Topic을 출력
   // 한 토픽에 대해서
+  import org.apache.spark.mllib.clustering.LDA
+  // Set LDA parameters
+  val numTopics = 20
+  val numTerms = 10
 
+  val lda = new LDA().setK(numTopics).setMaxIterations(100)
+  val model = lda.run(matrix)
+  val distmodel = model.asInstanceOf[DistributedLDAModel]
 
   val docsl = docs.collect
+  val topics = distmodel.describeTopics(maxTermsPerTopic = numTerms)
   // topics(i)._1.zip(topics(i)._2) 각 토픽의 Term-Weight 리스트
 
   // 주제 별 탑 문서 50개
@@ -47,9 +48,8 @@ object LDATopicCRB extends App {
     val terms = topics(k)._1.zip(topics(k)._2).map { case (t, w) =>
         s"${id2vocab(t)}\n" + f"$w%1.3f"
     }
-
     val doclist = topDocsPerTopic(k)._1.zip(topDocsPerTopic(k)._2).filter(dw => dw._2 > 0.1)
-    //val crbarea = crbArea(doclist)
+    val crbarea = crbArea(doclist.map(_._1))
   })
 
   val docs2topics = distmodel.topTopicsPerDocument(20).collect()

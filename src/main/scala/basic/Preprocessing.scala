@@ -2,7 +2,7 @@ package basic
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.lucene.analysis.ko.morph.{MorphAnalyzer, PatternConstants}
-import org.apache.spark.mllib.feature.HashingTF
+import org.apache.spark.mllib.feature.{HashingTF, IDFModel}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.linalg.{SparseVector, Vector, Vectors}
 import org.apache.spark.rdd.RDD
@@ -109,13 +109,12 @@ trait PreProcessing extends Serializable {
     val tf = hashingTF.transform(corpus.map(c => c.toIndexedSeq))
     tf.cache()
 
-    val idf = new IDF(minDocFreq = 2).fit(tf)
+    val idf = new IDF().fit(tf)
     val vocab = corpus.flatMap(x => x).distinct.map(x => (hashingTF.indexOf(x), x)).collect.toMap
     val tfidf = idf.transform(tf)
 
     (vocab.map(_.swap), tfidf.zipWithIndex.map(_.swap))
   }
-
 
 
   import org.apache.lucene.analysis.ko.morph._
@@ -141,7 +140,6 @@ trait PreProcessing extends Serializable {
       }
     })
 
-
     words.filter(s => !s.forall(_.isDigit) && !stoppattern(s))
   }
 
@@ -157,20 +155,36 @@ trait PreProcessing extends Serializable {
   }
 
   def stoppattern(s: String): Boolean = {
-    val pattern = "[0-9]+(차|개|년|시|세|점|번|명|차년|차원|만명|개월|분)"
+    val pattern = "[0-9]+(차|개|년|시|세|점|번|명|위|년|차년|차원|만명|개월|분)"
     s.matches(pattern)
   }
 }
 
 trait TFIDF {
-  def getMatrix(corpus: RDD[Array[String]]) : (RDD[Vector], HashingTF) = {
+  def getMatrix(corpus: RDD[Array[String]]) : (RDD[Vector], HashingTF, IDFModel) = {
     val hashingTF = new HashingTF()
     val tf: RDD[Vector] = hashingTF.transform(corpus.map(c => c.toIndexedSeq))
 
     import org.apache.spark.mllib.feature.IDF
     tf.cache()
     val idf = new IDF().fit(tf)
-    (idf.transform(tf), hashingTF)
+    (idf.transform(tf), hashingTF, idf)
+  }
+
+  def getMatrixFreqOnly(corpus: RDD[Array[String]]) : (RDD[Vector], Map[String, Int]) = {
+    val vocab = corpus.flatMap(x => x).distinct.collect.zipWithIndex.toMap
+    val matrix: RDD[Vector] = corpus.map {
+      case tokens => {
+        //val counts = new scala.collection.mutable.HashMap[Int, Double]()
+        val vec = tokens.foldLeft(Map[Int, Double]())((res, t) => {
+          val vocabid = vocab(t)
+          res + (vocabid -> (res.getOrElse(vocabid, 0.0) + 1.0))
+        })
+        //val (indices, values) = vec.keys
+        new SparseVector(vocab.size, vec.keys.toArray, vec.values.toArray)
+      }
+    }
+    (matrix, vocab)
   }
 }
 
