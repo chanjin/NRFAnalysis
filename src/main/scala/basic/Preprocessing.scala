@@ -70,7 +70,7 @@ trait PreProcessing extends Serializable {
     val stopWordsSet = Set("of", "and", "in", "the", "Mixed", "for", "근간한", "대한", "활용", "관련", "가능", "연구", "개발", "통한",
       "제시", "제공", "이용", "적용", "다양", "0", "의한", "ET", "중요", "to", "be", "by", "with", "will", "on", "부터", "및",
       "위한", "이용한", "개발", "관한", "미치는", "기반의", "활용한", "규명", "새로운", "기반", "유래", "기술", "시스템", "따른", "II",
-    "방안", "기법")
+    "방안", "기법", "최근", "경우")
     stopWords = sc.broadcast(stopWordsSet).value
 
     inputdata
@@ -157,7 +157,7 @@ trait PreProcessing extends Serializable {
   }
 
   def stoppattern(s: String): Boolean = {
-    val pattern = "[0-9]+(차|개|점|명)"
+    val pattern = "[0-9]+(차|개|년|시|세|점|번|명|차년|차원|만명|개월|분)"
     s.matches(pattern)
   }
 }

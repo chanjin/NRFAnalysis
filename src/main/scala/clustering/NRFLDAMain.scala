@@ -30,7 +30,7 @@ object NRFLDAMain extends PreProcessing {
     val sc = new SparkContext(conf)
     Logger.getLogger("org").setLevel(Level.ERROR)
 
-    val model = DistributedLDAModel.load(sc, "model/NRFLDAModel")
+    val model = DistributedLDAModel.load(sc, "lda/NRFLDAModel")
   }
 
 
@@ -49,12 +49,12 @@ object NRFLDAMain extends PreProcessing {
     val (docs, corpus, meta) = NRFData.load(sc)
 
     //val (vocab, matrix) = getMatrix(corpus)
-    val (vocab, matrix) = getMatrixTFIDF(corpus)
+    val (vocab, matrix) = getMatrix(corpus)
 
     import org.apache.spark.mllib.clustering.LDA
     // Set LDA parameters
     val numTopics = 20
-    val numTerms = 20
+    val numTerms = 10
     docs.cache()
     matrix.cache()
 
@@ -62,7 +62,6 @@ object NRFLDAMain extends PreProcessing {
     val ldaModel = lda.run(matrix)
     val id2vocab = vocab.map(_.swap)
 
-    ldaModel.save(sc, "data/lda/NRFLDAModel")
 
     val ldahtml = new LDAVizHTML(ldaModel, id2vocab, docs.collect(), meta, numTerms, docpath)
 
@@ -81,6 +80,9 @@ object NRFLDAMain extends PreProcessing {
 
     println(vocab.size)
     println(vocab.keys.mkString(", "))
+
+
+    //if (! new java.io.File("lda/NRFLDAModel").exists()) ldaModel.save(sc, "lda/NRFLDAModel")
   }
 }
 

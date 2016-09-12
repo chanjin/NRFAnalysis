@@ -4,16 +4,18 @@ name := "NRFAnalysis"
 
 version := "1.0"
 
-scalaVersion := "2.10.6"
+scalaVersion := "2.11.8"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" % "spark-core_2.10" % "1.6.2",
-  "org.apache.spark" % "spark-mllib_2.10" % "1.6.2",
+  "org.apache.spark" %% "spark-core" % "2.0.0",
+  "org.apache.spark" %% "spark-mllib" % "2.0.0",
   "joda-time" % "joda-time" % "2.7",
   "org.scalanlp" %% "breeze" % "0.11.2",
   "org.scalanlp" %% "breeze-natives" % "0.11.2",
   "org.scalanlp" %% "breeze-viz" % "0.11.2"
 )
+
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.0" % "test"
 
 libraryDependencies += "org.apache.poi" % "poi" % "3.14"
 libraryDependencies += "org.apache.poi" % "poi-ooxml" % "3.14"

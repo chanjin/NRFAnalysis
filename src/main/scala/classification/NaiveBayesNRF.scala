@@ -53,6 +53,8 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
     println(f"Precision = ${tp.toDouble/(tp + fp)}%1.2f, Recall = ${tp.toDouble/(tp + fn)}%1.2f")
 
     println(f"Accuracy = ${(tp + tn).toDouble/(tp + tn + fp + fn)}")
+
+
   }
 
   def runMulticlass(sc: SparkContext, getLabel: MetaData => Int, classes: Map[Int, String]) = {
@@ -198,6 +200,8 @@ object NaiveBayesNRF  {
 
     def getLabel(m: MetaData) = crb(m.mainArea(1)) // CRB 분류
     dt.runMulticlass(sc, getLabel, crb.map(_.swap))
+
+    sc.stop
 
     //dt.saveMulticlass(getLabel, crb.map(_.swap))
   }
