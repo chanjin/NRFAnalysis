@@ -47,7 +47,7 @@ object NRFLDAMain extends PreProcessing {
     //TODO: Processing Missing Meta Data
 
     val (docs, corpus, meta) = NRFData.load(sc)
-    
+
     val (vocab, matrix) = getMatrix(corpus)
     //val (vocab, matrix) = getMatrixTFIDF(corpus)
 

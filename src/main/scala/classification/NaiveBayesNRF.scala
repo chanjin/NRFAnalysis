@@ -62,6 +62,7 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
 
     //val (matrix, hashtf, idf) = getMatrix(corpus)
     val (matrix, vocabs) = getMatrixFreqOnly(corpus)
+
     val parsedData = docs.zip(matrix).map(d => {
       LabeledPoint(getLabel(metadata(d._1)), d._2.toDense)
     }).randomSplit(Array(0.7, 0.3))
@@ -69,6 +70,7 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
     val (training, test) = (parsedData(0), parsedData(1))
 
     val model = NaiveBayes.train(training, lambda = 0.5, modelType = "multinomial")
+
 
     /*println(s"전체 과제 수: ${tfidf.count()}")
     println(s"학습에 사용한 과제 수: ${training.count()}, 테스트 과제 수: ${test.count()}")
@@ -151,6 +153,14 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
     println(s"Weighted false positive rate: ${metrics.weightedFalsePositiveRate}")
 
     f.close()
+
+
+
+
+
+
+
+
   }
 
   def saveMulticlass(getLabel: MetaData => Int, classes: Map[Int, String]) = {

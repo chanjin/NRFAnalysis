@@ -2,12 +2,9 @@
   * Created by chanjinpark on 2016. 9. 11..
   */
 
-
-import java.io._
-
 import org.apache.spark.mllib.classification.NaiveBayes
 import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics}
-import org.apache.spark.mllib.linalg.{DenseVector, Vector}
+import org.apache.spark.mllib.linalg.{DenseVector, SparseVector, Vector}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 val dir = "/Users/chanjinpark/GitHub/NRFAnalysis/"
@@ -37,20 +34,24 @@ val meta = {
 val crb: Map[String, Int] = meta.map(_._2.mainArea(1)).toList.distinct.sortWith(_.compare(_) < 0).zipWithIndex.toMap
 val classes = crb.map(_.swap)
 
-
-import org.apache.spark.mllib.feature.HashingTF
-import org.apache.spark.mllib.feature.IDF
-
-val hashingTF = new HashingTF()
-val tf: RDD[Vector] = hashingTF.transform(corpus.map(c => c.toIndexedSeq))
-val idf = new IDF().fit(tf)
-val tfidf = idf.transform(tf)
+val vocab = corpus.flatMap(x => x).distinct.collect.zipWithIndex.toMap
+val matrix: RDD[Vector] = corpus.map {
+  case tokens => {
+    //val counts = new scala.collection.mutable.HashMap[Int, Double]()
+    val vec = tokens.foldLeft(Map[Int, Double]())((res, t) => {
+      val vocabid = vocab(t)
+      res + (vocabid -> (res.getOrElse(vocabid, 0.0) + 1.0))
+    })
+    //val (indices, values) = vec.keys
+    new SparseVector(vocab.size, vec.keys.toArray, vec.values.toArray)
+  }
+}
 
 def getLabel(m: MetaData): Double = crb(m.mainArea(1)) // CRB 분류
 
-val parsedData = docs.zip(tfidf).map(d => {
+val parsedData = docs.zip(matrix).map(d => {
   (getLabel(meta(d._1)), d._2.toDense)
-}).randomSplit(Array(0.8, 0.2))
+}).randomSplit(Array(0.7, 0.3))
 
 val (training, test) = (parsedData(0), parsedData(1))
 val lambdaval = 1.0
@@ -156,17 +157,9 @@ println(s"Weighted F1 score: ${metrics.weightedFMeasure}")
 println(s"Weighted false positive rate: ${metrics.weightedFalsePositiveRate}")
 
 
-val eval = docs.zip(corpus).randomSplit(Array(0.01, 0.99))(0).take(5)
-
-eval.foreach(e => {
-  val (d, c) = (e._1, e._2.toIndexedSeq)
-  println(d)
-  println(c.length)
-  println(c.mkString(","))
-
-  val tf = hashingTF.transform(c)  //println(c.map(x => hashingTF.indexOf(x)))
-  val tfidf = idf.transform(tf)
-
-  println(model.predict(tfidf))
+val eval = test.take(10) //docs.zip(corpus).randomSplit(Array(0.01, 0.99))(0).take(5)
+eval.foreach(lp => {
+  println(lp._1 + ": " + classes(lp._1.toInt))
+  println(models.toList.sortWith((a, b) => a._1 < b._1).map(m => m._2.predict(lp._2)).mkString(","))
   println()
 })
