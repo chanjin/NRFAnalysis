@@ -60,8 +60,8 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
     import java.io._
     val dir = "data/naivebayes/"
 
-    //val (matrix, hashtf, idf) = getMatrix(corpus)
-    val (matrix, vocabs) = getMatrixFreqOnly(corpus)
+    val (matrix, hashtf, idf) = getMatrix(corpus)
+    //val (matrix, vocabs) = getMatrixFreqOnly(corpus)
 
     val parsedData = docs.zip(matrix).map(d => {
       LabeledPoint(getLabel(metadata(d._1)), d._2.toDense)
@@ -70,15 +70,6 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
     val (training, test) = (parsedData(0), parsedData(1))
 
     val model = NaiveBayes.train(training, lambda = 0.5, modelType = "multinomial")
-
-
-    /*println(s"전체 과제 수: ${tfidf.count()}")
-    println(s"학습에 사용한 과제 수: ${training.count()}, 테스트 과제 수: ${test.count()}")
-    println("CRB 분류 별 과제 수 (Training)")
-    training.groupBy(lp => lp.label).map(x => x._1 + " " + classes(x._1.toInt) + ": " + x._2.size).collect.foreach(println)
-    println("CRB 분류 별 과제 수 (Testing)")
-    test.groupBy(lp => lp.label).map(x => x._1 + " " + classes(x._1.toInt) + ": " + x._2.size).collect.foreach(println)
-    */
 
     val modelfile = dir + "model"
     if (new File(modelfile).exists()) println(s"$modelfile exists, so skip file generation ")
@@ -153,12 +144,6 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
     println(s"Weighted false positive rate: ${metrics.weightedFalsePositiveRate}")
 
     f.close()
-
-
-
-
-
-
 
 
   }

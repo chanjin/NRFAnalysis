@@ -1,19 +1,28 @@
 package examples
 
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.ml.feature.{CountVectorizer, CountVectorizerModel}
+import org.apache.spark.ml.feature.{ HashingTF}
 import org.apache.spark.{SparkConf, SparkContext}
 
 /**
   * Created by chanjinpark on 2016. 9. 12..
   */
-object OneVsRest extends App {
+object OneVsRest extends App with basic.TFIDF {
 
   val conf = new SparkConf(true).setMaster("local").setAppName("NSFLDA")
   val sc = new SparkContext(conf)
   Logger.getLogger("org").setLevel(Level.ERROR)
 
-  val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+  import org.apache.spark.sql.SparkSession
+
+  val spark = SparkSession
+    .builder()
+    .appName("Spark SQL Example")
+    .config("spark.some.config.option", "some-value")
+    .getOrCreate()
+
+
+  val sqlContext = spark.sqlContext
 
   import org.apache.spark.ml.linalg.{Vectors, VectorUDT, SparseVector, Vector}
   import org.apache.spark.ml.feature.LabeledPoint
@@ -58,8 +67,16 @@ object OneVsRest extends App {
       new SparseVector(vocab.size, vec.keys.toArray, vec.values.toArray)
     }
   }
+  /*{
+    val hashingTF = new HashingTF()
+    val c1 = spark.createDataFrame(corpus)
+    val tf = hashingTF.transform(sqlContext.createDataFrame(c1))
 
-
+    import org.apache.spark.ml.feature.IDF
+    tf.cache()
+    val idf = new IDF().fit(tf)
+    (idf.transform(tf), hashingTF, idf)
+  }*/
 
   //val cvModel: CountVectorizerModel = new CountVectorizer().setInputCol("words").setOutputCol("features").setVocabSize(vocab.size).fit(sqlContext.createDataFrame(corpus.zipWithIndex()).toDF("words", "idx"))
 
@@ -88,6 +105,8 @@ object OneVsRest extends App {
 
   // score the model on test data.
   val predictions = ovrModel.transform(test)
+
+  import spark.implicits._
 
   // evaluate the model
   val predictionsAndLabels = predictions.select("prediction", "label").map(row => (row.getDouble(0), row.getDouble(1)))

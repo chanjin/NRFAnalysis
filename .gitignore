@@ -1,7 +1,7 @@
 *.class
 project/
 target/
-ldaviz/
+ldaviz*/
 .idea/
 data/
 metastore_db/
