@@ -44,8 +44,7 @@ class LDAResults( ldaModel: LDAModel,  vocabArray: Map[Int, String],  docs: Arra
       case (did, tids, ws) => {
         val s = docs(did.toInt)
         val areas = area(s)
-        s + ", " + areas.title.replaceAll(",", " ") + ", " + areas.mainArea(1) + ", "
-          tids.zip(ws).map { case (t, w) => t + ":" + w }.mkString(", ")
+        s + ", " + areas.title.replaceAll(",", " ") + ", " + areas.mainArea(1) + ", " + tids.zip(ws).map { case (t, w) => t + ":" + w }.mkString(", ")
       }
     }.mkString("\n"))
     f.close()

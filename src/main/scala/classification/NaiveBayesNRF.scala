@@ -56,7 +56,7 @@ class NaiveBayesNRF(docs: RDD[String], corpus: RDD[Array[String]], metadata: Map
 
   }
 
-  def runMulticlass(sc: SparkContext, getLabel: MetaData => Int, classes: Map[Int, String]) = {
+  def   runMulticlass(sc: SparkContext, getLabel: MetaData => Int, classes: Map[Int, String]) = {
     import java.io._
     val dir = "data/naivebayes/"
 
@@ -318,7 +318,13 @@ object NaiveBayesNRF  {
     val i2crb = crb.map(_.swap)
     (0 until crb.size).foreach( x => println(x + ": " + i2crb(x) + " - " + crpcls(i2crb(x))))
 
-    def getLabel(m: MetaData) = crb(m.mainArea(1)) // CRB 분류
+    def getLabel(m: MetaData) = {
+      //val area = if (m.mainArea(1).equals("기초의학") || m.mainArea(1).equals("응용의학")) "의학" else m.mainArea(1)
+      //crb(area)
+      crb(m.mainArea(1))
+    } // CRB 분류
+
+
     dt.runMulticlass(sc, getLabel, crb.map(_.swap))
 
     sc.stop

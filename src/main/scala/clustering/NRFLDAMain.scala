@@ -47,8 +47,8 @@ object NRFLDAMain extends PreProcessing {
     //TODO: Processing Missing Meta Data
 
     val (docs, corpus, meta) = NRFData.load(sc)
-
     val (vocab, matrix) = getMatrix(corpus)
+    val docsid = docs.zipWithIndex().map(_.swap)
     //val (vocab, matrix) = getMatrixTFIDF(corpus)
 
     import org.apache.spark.mllib.clustering.LDA
@@ -64,9 +64,13 @@ object NRFLDAMain extends PreProcessing {
 
     // ldaModel.save(sc, "data/lda/NRFLDAModel")
 
-    val ldahtml = new LDAVizHTML(ldaModel, id2vocab, docs.collect(), meta, numTerms, docpath, "ldaviz3020/")
+    val ldahtml = new LDAVizHTML(ldaModel, id2vocab, docs.collect(), meta, numTerms, docpath, "ldaviz2020/")
 
     ldahtml.generatePages()
+
+
+    val ldares = new LDAResults(ldaModel, id2vocab, docsid.sortBy(_._1).map(_._2).collect(), meta, numTerms, docpath, "ldaviz2020/")
+    ldares.writeAll()
 
     val topicIndices = ldaModel.describeTopics(maxTermsPerTopic = numTerms)
 

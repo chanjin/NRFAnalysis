@@ -10,3 +10,4 @@ jar/
 jars/
 model/
 pythoncode/.ipynb_checkpoints
+*.png
